@@ -176,9 +176,13 @@ function App() {
   const [showThink, setShowThink] = useState(false);
   const [showButton, setShowButton] = useState(false);
   const [phase, setPhase] = useState<'think' | 'speak'>('think');
-  
-  const { seconds, isRunning, start } = useTimer(60);
-  const progress = 1 - (seconds / 60);
+
+  const TIMER_SECONDS = 60;
+  const thinkTimer = useTimer(TIMER_SECONDS);
+  const speakTimer = useTimer(TIMER_SECONDS);
+
+  const activeSeconds = phase === 'think' ? thinkTimer.seconds : speakTimer.seconds;
+  const progress = 1 - (activeSeconds / TIMER_SECONDS);
   const circumference = 2 * Math.PI * 140;
   const strokeDashoffset = circumference * (1 - progress);
   
@@ -215,16 +219,57 @@ function App() {
   const handleStartThinking = () => {
     setScreen('timer');
     setPhase('think');
+    thinkTimer.reset(TIMER_SECONDS);
+    speakTimer.reset(TIMER_SECONDS);
     playAmbientStart();
-    setTimeout(() => start(), 500);
+    setTimeout(() => thinkTimer.start(), 500);
+  };
+
+  const handleGoToSpeak = () => {
+    thinkTimer.pause();
+    setPhase('speak');
+    speakTimer.reset(TIMER_SECONDS);
+    playToneShift();
+    setTimeout(() => speakTimer.start(), 300);
+  };
+
+  const handleBackToSpinner = () => {
+    thinkTimer.reset(TIMER_SECONDS);
+    speakTimer.reset(TIMER_SECONDS);
+    setScreen('before');
+  };
+
+  const handleRepeat = () => {
+    thinkTimer.reset(TIMER_SECONDS);
+    speakTimer.reset(TIMER_SECONDS);
+    setPhase('think');
+    setScreen('revealed');
+    setShowThink(true);
+    setShowButton(true);
   };
 
   useEffect(() => {
-    if (seconds === 0 && !isRunning && screen === 'timer' && phase === 'think') {
+    if (
+      thinkTimer.seconds === 0 &&
+      !thinkTimer.isRunning &&
+      screen === 'timer' &&
+      phase === 'think'
+    ) {
       setPhase('speak');
+      speakTimer.reset(TIMER_SECONDS);
       playToneShift();
+      setTimeout(() => speakTimer.start(), 300);
     }
-  }, [seconds, isRunning, screen, phase, playToneShift]);
+  }, [
+    thinkTimer.seconds,
+    thinkTimer.isRunning,
+    screen,
+    phase,
+    TIMER_SECONDS,
+    playToneShift,
+    speakTimer.reset,
+    speakTimer.start,
+  ]);
 
   return (
     <div 
@@ -237,7 +282,7 @@ function App() {
           className="text-[10px] tracking-[0.4em] text-[#1a1a1a]/30 uppercase"
           style={{ fontFamily: '"Inter", sans-serif', fontWeight: 200 }}
         >
-          IMPROTU
+          @ADNANELOGS
         </span>
       </div>
 
@@ -380,11 +425,12 @@ function App() {
               </span>
             </motion.div>
 
-            {/* Word with circular timer */}
-            <div className="relative">
+            {/* Word with circular timer - fixed height so circle doesn't overlap buttons */}
+            <div className="relative min-h-[320px] sm:min-h-[360px] md:min-h-[400px] w-full flex flex-col items-center justify-center">
               <svg 
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] sm:w-[320px] sm:h-[320px] md:w-[360px] md:h-[360px]"
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] sm:w-[320px] sm:h-[320px] md:w-[360px] md:h-[360px] pointer-events-none"
                 viewBox="0 0 300 300"
+                aria-hidden
               >
                 <circle
                   cx="150"
@@ -412,7 +458,7 @@ function App() {
               </svg>
 
               <div 
-                className="text-5xl sm:text-6xl md:text-7xl tracking-[0.12em] text-[#1a1a1a]"
+                className="relative z-0 text-5xl sm:text-6xl md:text-7xl tracking-[0.12em] text-[#1a1a1a]"
                 style={{
                   fontFamily: '"Cormorant Garamond", Georgia, serif',
                   fontWeight: 400,
@@ -421,6 +467,42 @@ function App() {
               >
                 {currentWord}
               </div>
+            </div>
+
+            {/* Timer actions - below the circle, clearly separated */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-10 mt-2 relative z-10">
+              {phase === 'think' ? (
+                <motion.button
+                  onClick={handleGoToSpeak}
+                  whileHover={{ backgroundColor: 'rgba(26, 26, 26, 0.08)' }}
+                  whileTap={{ scale: 0.98 }}
+                  className="px-8 py-3 border border-[#1a1a1a]/60 text-[#1a1a1a] text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:border-[#1a1a1a]"
+                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                >
+                  Go to Speak
+                </motion.button>
+              ) : (
+                <>
+                  <motion.button
+                    onClick={handleBackToSpinner}
+                    whileHover={{ backgroundColor: 'rgba(26, 26, 26, 0.08)' }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-8 py-3 border border-[#1a1a1a]/60 text-[#1a1a1a] text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:border-[#1a1a1a]"
+                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                  >
+                    Back to spinner
+                  </motion.button>
+                  <motion.button
+                    onClick={handleRepeat}
+                    whileHover={{ backgroundColor: 'rgba(26, 26, 26, 0.92)' }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-8 py-3 bg-[#1a1a1a] text-[#FDF6F0]/90 text-xs tracking-[0.25em] uppercase transition-all duration-300"
+                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                  >
+                    Repeat
+                  </motion.button>
+                </>
+              )}
             </div>
           </div>
         </motion.div>
