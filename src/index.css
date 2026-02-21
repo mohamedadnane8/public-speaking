@@ -1,0 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@200;300;400;500&family=Playfair+Display:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 30 50% 97%;
+    --foreground: 150 30% 15%;
+    --card: 30 50% 97%;
+    --card-foreground: 150 30% 15%;
+    --popover: 30 50% 97%;
+    --popover-foreground: 150 30% 15%;
+    --primary: 150 30% 15%;
+    --primary-foreground: 30 50% 97%;
+    --secondary: 30 30% 92%;
+    --secondary-foreground: 150 30% 15%;
+    --muted: 30 30% 92%;
+    --muted-foreground: 150 10% 50%;
+    --accent: 270 30% 75%;
+    --accent-foreground: 150 30% 15%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 150 20% 80%;
+    --input: 150 20% 80%;
+    --ring: 270 30% 75%;
+    --radius: 0;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  body {
+    @apply bg-[#FDF6F0] text-[#1a3a2a];
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-weight: 300;
+    letter-spacing: 0.01em;
+  }
+}
+
+/* Selection styling */
+::selection {
+  background: rgba(26, 58, 42, 0.15);
+  color: #1a3a2a;
+}
+
+/* Custom scrollbar - minimal */
+::-webkit-scrollbar {
+  width: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(26, 58, 42, 0.15);
+  border-radius: 1px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(26, 58, 42, 0.25);
+}
+
+/* Focus states */
+button:focus-visible,
+a:focus-visible {
+  outline: 1px solid rgba(26, 58, 42, 0.2);
+  outline-offset: 2px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
