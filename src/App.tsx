@@ -171,6 +171,7 @@ const useTimer = (initialSeconds: number) => {
 function App() {
   const [screen, setScreen] = useState<'before' | 'revealing' | 'revealed' | 'timer'>('before');
   const [currentWord, setCurrentWord] = useState('');
+  const [spinKey, setSpinKey] = useState(0);
   const [isRevealing, setIsRevealing] = useState(false);
   const [showThink, setShowThink] = useState(false);
   const [showButton, setShowButton] = useState(false);
@@ -188,6 +189,7 @@ function App() {
     const randomIndex = Math.floor(Math.random() * topics.length);
     const newWord = topics[randomIndex];
     setCurrentWord(newWord);
+    setSpinKey((k) => k + 1);
     setScreen('revealing');
     setIsRevealing(true);
     setShowThink(false);
@@ -226,13 +228,13 @@ function App() {
 
   return (
     <div 
-      className="min-h-screen bg-[#FDF6F0] selection:bg-[#1a3a2a]/15 selection:text-[#1a3a2a]"
+      className="min-h-screen bg-[#FDF6F0] selection:bg-[#1a1a1a]/15 selection:text-[#1a1a1a]"
       style={{ fontFamily: '"Inter", "Cormorant Garamond", sans-serif' }}
     >
       {/* Subtle branding - always visible */}
       <div className="absolute top-8 right-8 z-50">
         <span 
-          className="text-[10px] tracking-[0.4em] text-[#1a3a2a]/30 uppercase"
+          className="text-[10px] tracking-[0.4em] text-[#1a1a1a]/30 uppercase"
           style={{ fontFamily: '"Inter", sans-serif', fontWeight: 200 }}
         >
           IMPROTU
@@ -260,7 +262,7 @@ function App() {
                   className="relative h-[1.1em] w-[0.7em] overflow-hidden"
                 >
                   <span 
-                    className="absolute inset-0 flex items-center justify-center text-[#1a3a2a]/50"
+                    className="absolute inset-0 flex items-center justify-center text-[#1a1a1a]/50"
                     style={{
                       fontFamily: '"Cormorant Garamond", Georgia, serif',
                       fontWeight: 300,
@@ -277,7 +279,7 @@ function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4, duration: 0.5 }}
-              className="text-sm tracking-[0.15em] text-[#1a3a2a]/80"
+              className="text-sm tracking-[0.15em] text-[#1a1a1a]/80"
               style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
             >
               Spin the word.
@@ -288,9 +290,9 @@ function App() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.5 }}
-              whileHover={{ backgroundColor: 'rgba(26, 58, 42, 0.1)' }}
+              whileHover={{ backgroundColor: 'rgba(26, 26, 26, 0.08)' }}
               whileTap={{ scale: 0.98 }}
-              className="px-12 py-4 border border-[#1a3a2a]/60 text-[#1a3a2a] text-xs tracking-[0.35em] uppercase transition-all duration-300 hover:border-[#1a3a2a] hover:bg-[#1a3a2a] hover:text-[#FDF6F0]"
+              className="px-12 py-4 border border-[#1a1a1a]/60 text-[#1a1a1a] text-xs tracking-[0.35em] uppercase transition-all duration-300 hover:border-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-[#FDF6F0]"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
               SPIN
@@ -317,15 +319,16 @@ function App() {
               className="h-6"
             >
               <span 
-                className="text-sm tracking-[0.2em] text-[#1a3a2a]/80"
+                className="text-sm tracking-[0.2em] text-[#1a1a1a]/80"
                 style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
               >
                 Think.
               </span>
             </motion.div>
 
-            {/* Word reveal */}
+            {/* Word reveal - key forces remount each spin so animation always runs */}
             <WordReveal 
+              key={spinKey}
               word={currentWord} 
               isRevealing={isRevealing}
               onRevealComplete={handleRevealComplete}
@@ -341,9 +344,9 @@ function App() {
             >
               <motion.button
                 onClick={handleStartThinking}
-                whileHover={{ backgroundColor: 'rgba(26, 58, 42, 0.95)' }}
+                whileHover={{ backgroundColor: 'rgba(26, 26, 26, 0.92)' }}
                 whileTap={{ scale: 0.98 }}
-                className="px-10 py-4 bg-[#1a3a2a] text-[#FDF6F0]/90 text-xs tracking-[0.25em] uppercase transition-all duration-300"
+                className="px-10 py-4 bg-[#1a1a1a] text-[#FDF6F0]/90 text-xs tracking-[0.25em] uppercase transition-all duration-300"
                 style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
               >
                 START THINKING
@@ -370,7 +373,7 @@ function App() {
               className="h-6"
             >
               <span 
-                className="text-sm tracking-[0.2em] text-[#1a3a2a]/80"
+                className="text-sm tracking-[0.2em] text-[#1a1a1a]/80"
                 style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
               >
                 {phase === 'think' ? 'Think.' : 'Speak.'}
@@ -388,7 +391,7 @@ function App() {
                   cy="150"
                   r="140"
                   fill="none"
-                  stroke="#1a3a2a"
+                  stroke="#1a1a1a"
                   strokeWidth="0.5"
                   strokeOpacity="0.15"
                 />
@@ -397,7 +400,7 @@ function App() {
                   cy="150"
                   r="140"
                   fill="none"
-                  stroke="#1a3a2a"
+                  stroke="#1a1a1a"
                   strokeWidth="1"
                   strokeLinecap="round"
                   strokeDasharray={circumference}
@@ -409,7 +412,7 @@ function App() {
               </svg>
 
               <div 
-                className="text-5xl sm:text-6xl md:text-7xl tracking-[0.12em] text-[#1a3a2a]"
+                className="text-5xl sm:text-6xl md:text-7xl tracking-[0.12em] text-[#1a1a1a]"
                 style={{
                   fontFamily: '"Cormorant Garamond", Georgia, serif',
                   fontWeight: 400,

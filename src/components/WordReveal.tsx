@@ -27,51 +27,55 @@ const LetterColumn = ({
   const [displayChar, setDisplayChar] = useState('—');
   const [isSettled, setIsSettled] = useState(false);
   const frameRef = useRef<number | null>(null);
-  const hasStartedRef = useRef(false);
   const lastSpinTimeRef = useRef(0);
+  const firstLetterShownRef = useRef(false);
 
   useEffect(() => {
-    if (isRevealing && !hasStartedRef.current) {
-      hasStartedRef.current = true;
-      lastSpinTimeRef.current = 0;
-      const startTime = performance.now();
+    if (!isRevealing) return;
 
-      const animate = () => {
-        const elapsed = performance.now() - startTime;
-        const spinDuration = 1200;
-        const settleStart = spinDuration + delay;
-        const settleDuration = 350;
-        const settleEnd = settleStart + settleDuration;
+    lastSpinTimeRef.current = 0;
+    firstLetterShownRef.current = false;
+    const startTime = performance.now();
 
-        if (elapsed < spinDuration) {
-          // Throttle updates so each letter is visible
-          if (elapsed - lastSpinTimeRef.current >= SPIN_INTERVAL_MS) {
+    const animate = () => {
+      const elapsed = performance.now() - startTime;
+      const spinDuration = 1200;
+      const settleStart = spinDuration + delay;
+      const settleDuration = 350;
+      const settleEnd = settleStart + settleDuration;
+
+      if (elapsed < spinDuration) {
+        // Show a letter on the very first frame so we never stay on "—"
+        if (!firstLetterShownRef.current) {
+          firstLetterShownRef.current = true;
+          setDisplayChar(getRandomChar());
+        } else if (elapsed - lastSpinTimeRef.current >= SPIN_INTERVAL_MS) {
+          lastSpinTimeRef.current = elapsed;
+          setDisplayChar(getRandomChar());
+        }
+        frameRef.current = requestAnimationFrame(animate);
+      } else if (elapsed < settleEnd) {
+        const progress = (elapsed - settleStart) / settleDuration;
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        if (easeOut < 0.75) {
+          if (elapsed - lastSpinTimeRef.current >= SPIN_INTERVAL_MS * 0.6) {
             lastSpinTimeRef.current = elapsed;
             setDisplayChar(getRandomChar());
           }
-          frameRef.current = requestAnimationFrame(animate);
-        } else if (elapsed < settleEnd) {
-          const progress = (elapsed - settleStart) / settleDuration;
-          const easeOut = 1 - Math.pow(1 - progress, 3);
-          // Deterministic: show random chars for first ~75%, then lock to target
-          if (easeOut < 0.75) {
-            if (elapsed - lastSpinTimeRef.current >= SPIN_INTERVAL_MS * 0.6) {
-              lastSpinTimeRef.current = elapsed;
-              setDisplayChar(getRandomChar());
-            }
-          } else {
-            setDisplayChar(targetChar);
-          }
-          frameRef.current = requestAnimationFrame(animate);
         } else {
           setDisplayChar(targetChar);
-          setIsSettled(true);
-          onSettled();
         }
-      };
+        frameRef.current = requestAnimationFrame(animate);
+      } else {
+        setDisplayChar(targetChar);
+        setIsSettled(true);
+        onSettled();
+      }
+    };
 
-      frameRef.current = requestAnimationFrame(animate);
-    }
+    // Show first random letter immediately so spinning is visible from frame one
+    setDisplayChar(getRandomChar());
+    frameRef.current = requestAnimationFrame(animate);
 
     return () => {
       if (frameRef.current !== null) {
@@ -81,21 +85,22 @@ const LetterColumn = ({
   }, [isRevealing, targetChar, delay, onSettled]);
 
   return (
-    <div className="relative h-[1.1em] w-[0.7em] flex items-center justify-center">
+    <div className="relative h-[1.1em] min-h-[2rem] w-[0.7em] min-w-[0.5rem] flex items-center justify-center">
       <motion.span
-        className="absolute inset-0 flex items-center justify-center text-[#1a3a2a]"
+        className="absolute inset-0 flex items-center justify-center select-none"
         style={{
           fontFamily: '"Cormorant Garamond", Georgia, serif',
           fontWeight: isSettled ? 400 : 300,
           letterSpacing: '0.08em',
-        }}
-        initial={false}
-        animate={{
+          color: '#1a1a1a',
           opacity: 1,
-          y: 0,
-          scale: isSettled ? 1 : 1,
         }}
-        transition={{ duration: 0.15 }}
+        animate={isSettled ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+        transition={
+          isSettled
+            ? { duration: 0.35, times: [0, 0.4, 1], ease: 'easeOut' }
+            : { duration: 0.15 }
+        }
       >
         {displayChar}
       </motion.span>
@@ -148,7 +153,7 @@ export const WordReveal = ({ word, isRevealing, onRevealComplete, onLetterSettle
       </motion.div>
 
       <motion.div
-        className="absolute -bottom-3 left-1/2 h-[1px] bg-gradient-to-r from-transparent via-[#c9a86c]/60 to-transparent"
+        className="absolute -bottom-3 left-1/2 h-[1px] bg-gradient-to-r from-transparent via-[#1a1a1a]/40 to-transparent"
         initial={{ width: 0, x: '-50%' }}
         animate={{ 
           width: showUnderline ? '70%' : 0,

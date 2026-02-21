@@ -41,7 +41,7 @@
   }
   
   body {
-    @apply bg-[#FDF6F0] text-[#1a3a2a];
+    @apply bg-[#FDF6F0] text-[#1a1a1a];
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     font-weight: 300;
     letter-spacing: 0.01em;
@@ -50,8 +50,8 @@
 
 /* Selection styling */
 ::selection {
-  background: rgba(26, 58, 42, 0.15);
-  color: #1a3a2a;
+  background: rgba(26, 26, 26, 0.12);
+  color: #1a1a1a;
 }
 
 /* Custom scrollbar - minimal */
@@ -64,18 +64,18 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(26, 58, 42, 0.15);
+  background: rgba(26, 26, 26, 0.15);
   border-radius: 1px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(26, 58, 42, 0.25);
+  background: rgba(26, 26, 26, 0.25);
 }
 
 /* Focus states */
 button:focus-visible,
 a:focus-visible {
-  outline: 1px solid rgba(26, 58, 42, 0.2);
+  outline: 1px solid rgba(26, 26, 26, 0.3);
   outline-offset: 2px;
 }
 
