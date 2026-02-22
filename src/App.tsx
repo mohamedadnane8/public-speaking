@@ -338,6 +338,14 @@ function App() {
     setScreen('before');
   };
 
+  const handleBack = () => {
+    if (screen === 'timer') {
+      thinkTimer.pause();
+      speakTimer.pause();
+      setScreen('before');
+    } else if (screen === 'revealing' || screen === 'revealed') setScreen('before');
+  };
+
   const handleRepeat = () => {
     lowTimePlayedRef.current = false;
     speakTimer.reset(speakSeconds);
@@ -382,6 +390,20 @@ function App() {
       className="min-h-screen bg-[#FDF6F0] selection:bg-[#1a1a1a]/15 selection:text-[#1a1a1a]"
       style={{ fontFamily: '"Inter", "Cormorant Garamond", sans-serif' }}
     >
+      {/* Back - top left, only when there is a previous screen */}
+      {(screen === 'revealing' || screen === 'revealed' || screen === 'timer') && (
+        <button
+          type="button"
+          onClick={handleBack}
+          className="absolute top-8 left-8 z-50 p-2 text-[#1a1a1a]/50 hover:text-[#1a1a1a]/80 transition-colors"
+          aria-label="Back"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+        </button>
+      )}
+
       {/* Subtle branding - always visible */}
       <div className="absolute top-8 right-8 z-50">
         <span 
@@ -547,7 +569,7 @@ function App() {
                 className="text-sm tracking-[0.2em] text-[#1a1a1a]/80"
                 style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
               >
-                Think. 
+                Are you ready to start?
               </span>
             </motion.div>
 
@@ -574,7 +596,7 @@ function App() {
                 className="px-10 py-4 bg-[#1a1a1a] text-[#FDF6F0]/90 text-xs tracking-[0.25em] uppercase transition-all duration-300"
                 style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
               >
-                BEGIN
+                START
               </motion.button>
               <motion.button
                 onClick={handleSpin}
