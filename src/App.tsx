@@ -303,18 +303,18 @@ function App() {
           <div className="flex flex-col items-center space-y-12">
             {/* THINK / SPEAK — compact, architectural */}
             <div className="relative flex flex-col items-center">
-              <div className="flex flex-col items-center gap-1.5">
+              <div className="flex flex-col items-center gap-6">
                 <div className="flex items-center justify-center gap-3">
                   <span
-                    className="text-sm uppercase tracking-[0.35em] text-[#1a1a1a]/75"
-                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                    className="text-5xl uppercase tracking-[0.35em] text-[#1a1a1a]/75"
+                    style={{ fontFamily: '"Inter", sans-serif',  fontWeight: 400 }}
                   >
                     Think
                   </span>
                   <button
                     type="button"
                     onClick={() => setOpenPreset((p) => (p === 'think' ? null : 'think'))}
-                    className="text-[10px] tabular-nums text-[#1a1a1a]/50 hover:text-[#1a1a1a]/70 transition-colors"
+                    className="text-xl tabular-nums text-[#1a1a1a]/50 hover:text-[#1a1a1a]/70 transition-colors"
                     style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                   >
                     {thinkSeconds}s
@@ -322,7 +322,7 @@ function App() {
                 </div>
                 <div className="flex items-center justify-center gap-3">
                   <span
-                    className="text-sm uppercase tracking-[0.35em] text-[#1a1a1a]/75"
+                    className="text-5xl uppercase tracking-[0.35em] text-[#1a1a1a]/75"
                     style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                   >
                     Speak
@@ -330,7 +330,7 @@ function App() {
                   <button
                     type="button"
                     onClick={() => setOpenPreset((p) => (p === 'speak' ? null : 'speak'))}
-                    className="text-[10px] tabular-nums text-[#1a1a1a]/50 hover:text-[#1a1a1a]/70 transition-colors"
+                    className="text-xl tabular-nums text-[#1a1a1a]/50 hover:text-[#1a1a1a]/70 transition-colors"
                     style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                   >
                     {speakSeconds}s
