@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { WordReveal } from './components/WordReveal';
 import './App.css';
+
+const THINK_PRESETS = [15, 30, 45, 60] as const;
+const SPEAK_PRESETS = [30, 60, 90, 120] as const;
 
 // Refined topic list - single powerful words
 const topics = [
@@ -180,13 +183,15 @@ function App() {
   const [showThink, setShowThink] = useState(false);
   const [showButton, setShowButton] = useState(false);
   const [phase, setPhase] = useState<'think' | 'speak'>('think');
+  const [thinkSeconds, setThinkSeconds] = useState(30);
+  const [speakSeconds, setSpeakSeconds] = useState(60);
+  const [openPreset, setOpenPreset] = useState<'think' | 'speak' | null>(null);
 
-  const TIMER_SECONDS = 60;
-  const thinkTimer = useTimer(TIMER_SECONDS);
-  const speakTimer = useTimer(TIMER_SECONDS);
-
+  const thinkTimer = useTimer(30);
+  const speakTimer = useTimer(60);
+  const activeDuration = phase === 'think' ? thinkSeconds : speakSeconds;
   const activeSeconds = phase === 'think' ? thinkTimer.seconds : speakTimer.seconds;
-  const progress = 1 - (activeSeconds / TIMER_SECONDS);
+  const progress = 1 - (activeSeconds / activeDuration);
   const circumference = 2 * Math.PI * 140;
   const strokeDashoffset = circumference * (1 - progress);
   
@@ -223,8 +228,8 @@ function App() {
   const handleStartThinking = () => {
     setScreen('timer');
     setPhase('think');
-    thinkTimer.reset(TIMER_SECONDS);
-    speakTimer.reset(TIMER_SECONDS);
+    thinkTimer.reset(thinkSeconds);
+    speakTimer.reset(speakSeconds);
     playAmbientStart();
     setTimeout(() => thinkTimer.start(), 500);
   };
@@ -232,19 +237,19 @@ function App() {
   const handleGoToSpeak = () => {
     thinkTimer.pause();
     setPhase('speak');
-    speakTimer.reset(TIMER_SECONDS);
+    speakTimer.reset(speakSeconds);
     playToneShift();
     setTimeout(() => speakTimer.start(), 300);
   };
 
   const handleBackToSpinner = () => {
-    thinkTimer.reset(TIMER_SECONDS);
-    speakTimer.reset(TIMER_SECONDS);
+    thinkTimer.reset(thinkSeconds);
+    speakTimer.reset(speakSeconds);
     setScreen('before');
   };
 
   const handleRepeat = () => {
-    speakTimer.reset(TIMER_SECONDS);
+    speakTimer.reset(speakSeconds);
     setTimeout(() => speakTimer.start(), 200);
   };
 
@@ -256,7 +261,7 @@ function App() {
       phase === 'think'
     ) {
       setPhase('speak');
-      speakTimer.reset(TIMER_SECONDS);
+      speakTimer.reset(speakSeconds);
       playToneShift();
       setTimeout(() => speakTimer.start(), 300);
     }
@@ -265,7 +270,7 @@ function App() {
     thinkTimer.isRunning,
     screen,
     phase,
-    TIMER_SECONDS,
+    speakSeconds,
     playToneShift,
     speakTimer.reset,
     speakTimer.start,
@@ -296,27 +301,101 @@ function App() {
           className="min-h-screen w-full flex flex-col items-center justify-center"
         >
           <div className="flex flex-col items-center space-y-12">
-            {/* Empty columns with dashes */}
-            <div className="flex items-center justify-center text-6xl sm:text-7xl md:text-8xl lg:text-9xl tracking-[0.12em]">
-              {[...Array(7)].map((_, i) => (
-                <motion.div
+            {/* THINK / SPEAK — compact, architectural */}
+            <div className="relative flex flex-col items-center">
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="flex items-center justify-center gap-3">
+                  <span
+                    className="text-sm uppercase tracking-[0.35em] text-[#1a1a1a]/75"
+                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                  >
+                    Think
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setOpenPreset((p) => (p === 'think' ? null : 'think'))}
+                    className="text-[10px] tabular-nums text-[#1a1a1a]/50 hover:text-[#1a1a1a]/70 transition-colors"
+                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                  >
+                    {thinkSeconds}s
+                  </button>
+                </div>
+                <div className="flex items-center justify-center gap-3">
+                  <span
+                    className="text-sm uppercase tracking-[0.35em] text-[#1a1a1a]/75"
+                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                  >
+                    Speak
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setOpenPreset((p) => (p === 'speak' ? null : 'speak'))}
+                    className="text-[10px] tabular-nums text-[#1a1a1a]/50 hover:text-[#1a1a1a]/70 transition-colors"
+                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                  >
+                    {speakSeconds}s
+                  </button>
+                </div>
+              </div>
+
+              <AnimatePresence>
+                {openPreset && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      aria-hidden
+                      onClick={() => setOpenPreset(null)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute top-full left-1/2 -translate-x-1/2 mt-3 z-50 py-1.5 px-1 bg-[#FDF6F0] border border-[#1a1a1a]/12 rounded shadow-sm flex gap-0.5"
+                    >
+                      {(openPreset === 'think' ? THINK_PRESETS : SPEAK_PRESETS).map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => {
+                            if (openPreset === 'think') setThinkSeconds(s);
+                            else setSpeakSeconds(s);
+                            setOpenPreset(null);
+                          }}
+                          className={`min-w-[2.5rem] py-1 text-[11px] tracking-wide transition-colors ${
+                            (openPreset === 'think' ? thinkSeconds === s : speakSeconds === s)
+                              ? 'text-[#1a1a1a] font-medium'
+                              : 'text-[#1a1a1a]/60 hover:text-[#1a1a1a]'
+                          }`}
+                          style={{ fontFamily: '"Inter", sans-serif' }}
+                        >
+                          {s}s
+                        </button>
+                      ))}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Reel: dashes — spaced for breathing room */}
+            <div 
+              className="flex items-center justify-center text-6xl sm:text-7xl md:text-8xl lg:text-9xl gap-8 sm:gap-10 md:gap-12"
+              style={{
+                fontFamily: '"Cormorant Garamond", Georgia, serif',
+                fontWeight: 300,
+              }}
+            >
+              {[...Array(6)].map((_, i) => (
+                <motion.span
                   key={i}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: i * 0.05, duration: 0.4 }}
-                  className="relative h-[1.1em] w-[0.7em] overflow-hidden"
+                  className="text-[#1a1a1a]/50"
                 >
-                  <span 
-                    className="absolute inset-0 flex items-center justify-center text-[#1a1a1a]/50"
-                    style={{
-                      fontFamily: '"Cormorant Garamond", Georgia, serif',
-                      fontWeight: 300,
-                      letterSpacing: '0.08em',
-                    }}
-                  >
-                    —
-                  </span>
-                </motion.div>
+                  —
+                </motion.span>
               ))}
             </div>
 
@@ -367,7 +446,7 @@ function App() {
                 className="text-sm tracking-[0.2em] text-[#1a1a1a]/80"
                 style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
               >
-                Think.
+                Think. 
               </span>
             </motion.div>
 
@@ -380,12 +459,12 @@ function App() {
               onLetterSettle={playTock}
             />
 
-            {/* START THINKING button */}
+            {/* START THINKING + Respin */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: showButton ? 1 : 0, y: showButton ? 0 : 10 }}
               transition={{ duration: 0.5 }}
-              className="pt-8"
+              className="pt-8 flex flex-col items-center gap-4"
             >
               <motion.button
                 onClick={handleStartThinking}
@@ -394,7 +473,16 @@ function App() {
                 className="px-10 py-4 bg-[#1a1a1a] text-[#FDF6F0]/90 text-xs tracking-[0.25em] uppercase transition-all duration-300"
                 style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
               >
-                START THINKING
+                BEGIN
+              </motion.button>
+              <motion.button
+                onClick={handleSpin}
+                whileHover={{ backgroundColor: 'rgba(26, 26, 26, 0.06)' }}
+                whileTap={{ scale: 0.98 }}
+                className="text-[11px] tracking-[0.1.5em] uppercase text-[#1a1a1a]/55 hover:text-[#1a1a1a]/80 transition-colors"
+                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+              >
+                Spin again
               </motion.button>
             </motion.div>
           </div>
@@ -495,7 +583,7 @@ function App() {
                   className="px-8 py-3 border border-[#1a1a1a]/60 text-[#1a1a1a] text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:border-[#1a1a1a]"
                   style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                 >
-                  Go to Speak
+                  SPEAK
                 </motion.button>
               ) : (
                 <>
@@ -506,7 +594,7 @@ function App() {
                     className="px-8 py-3 border border-[#1a1a1a]/60 text-[#1a1a1a] text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:border-[#1a1a1a]"
                     style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                   >
-                    Back to spinner
+                    New Word
                   </motion.button>
                   <motion.button
                     onClick={handleRepeat}
@@ -515,7 +603,7 @@ function App() {
                     className="px-8 py-3 bg-[#1a1a1a] text-[#FDF6F0]/90 text-xs tracking-[0.25em] uppercase transition-all duration-300"
                     style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                   >
-                    Repeat
+                    Try Again
                   </motion.button>
                 </>
               )}
