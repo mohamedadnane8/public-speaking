@@ -8,31 +8,83 @@ const SPEAK_PRESETS = [30, 60, 90, 120] as const;
 
 // Refined topic list - single powerful words
 const topics = [
-  'COURAGE','CLARITY','PRESENCE','BALANCE','GROWTH',
-  'VISION','PURPOSE','WISDOM','TRUTH','BEAUTY',
-  'HARMONY','FREEDOM','STRENGTH','KINDNESS','PATIENCE',
-  'FOCUS','TRUST','HOPE','JOY','PEACE',
-  'LOVE','PASSION','GRACE','HUMILITY','RESILIENCE',
 
-  'DISCIPLINE','SILENCE','EGO','MEANING','POWER',
-  'DOUBT','IDENTITY','LEGACY','INTEGRITY','AWARENESS',
-  'PERCEPTION','INTENTION','DESTINY','FAITH','MORTALITY',
+  // Core Human Values
+  "Courage", "Clarity", "Presence", "Balance", "Growth",
+  "Vision", "Purpose", "Wisdom", "Truth", "Beauty",
+  "Harmony", "Freedom", "Strength", "Kindness", "Patience",
+  "Focus", "Trust", "Hope", "Joy", "Peace",
+  "Love", "Passion", "Grace", "Humility", "Resilience",
 
-  'AMBITION','MASTERY','CONSISTENCY','EXCELLENCE','PROGRESS',
-  'MOMENTUM','DRIVE','RISK','FAILURE','SUCCESS',
-  'SACRIFICE','POTENTIAL','COMMITMENT','IMPACT','LIMITS',
+  // Identity & Self
+  "Identity", "Ego", "Self-Worth", "Confidence", "Doubt",
+  "Authenticity", "Insecurity", "Discipline", "Integrity", "Vulnerability",
+  "Selfishness", "Maturity", "Awareness", "Intention", "Character",
+  "Values", "Morality", "Belief", "Perception", "Mindset",
+  "Habits", "Instinct", "Impulse", "Control", "Independence",
 
-  'FEAR','CONFIDENCE','ANXIETY','IMPULSE','SELF-WORTH',
-  'HABITS','CONTROL','VULNERABILITY','CURIOSITY','GRATITUDE',
-  'ENVY','PERSPECTIVE','AUTHENTICITY','BOUNDARIES','LOYALTY',
+  // Success & Ambition
+  "Ambition", "Mastery", "Excellence", "Consistency", "Progress",
+  MOMENTUM, DRIVE, FAILURE, SUCCESS, SACRIFICE,
+  "Potential", "Commitment", "Legacy", "Impact", "Risk",
+  "Competition", "Leadership", "Responsibility", "Accountability", "Visionary",
+  "Perseverance", "Strategy", "Discipline", "Productivity", "Execution",
 
-  'CHARISMA','LEADERSHIP','LISTENING','INFLUENCE','CONFLICT',
-  'RESPECT','COMMUNITY','REPUTATION','REJECTION','DIALOGUE',
-  'PERSUASION','HONESTY','ACCOUNTABILITY','COMPASSION','DIGNITY',
+  // Emotional Depth
+  "Fear", "Anxiety", "Shame", "Pride", "Envy",
+  "Gratitude", "Jealousy", "Guilt", "Loneliness", "Contentment",
+  " Compassion", "Empathy", "Forgiveness", "Rejection", "Abandonment",
+  "Heartbreak", "Trust", "Loyalty", "Betrayal", "Redemption",
 
-  'JUSTICE','RESPONSIBILITY','FORGIVENESS','PRIDE','SHAME',
-  'ETHICS','HONOR','MERCY','DISCOVERY','TRANSFORMATION',
-  'CHOICE','LOSS','LESSON','AWAKENING','REDEMPTION'
+  // Social & Communication
+  "Charisma", "Influence", "Persuasion", "Dialogue", "Listening",
+  "Conflict", "Respect", "Boundaries", "Community", "Reputation",
+  "Honesty", "Diplomacy", "Authority", "Negotiation", "Transparency",
+  "Presence", "Humor", "Silence", "Expression", "Storytelling",
+
+  // Philosophy & Abstract
+  "Time", "Meaning", "Existence", "Destiny", "Fate",
+  "Chaos", "Order", "Power", "Truth", "Illusion",
+  "Reality", "Consciousness", "Mortality", "Faith", "Doubt",
+  "Justice", "Ethics", "Dignity", "Honor", "Mercy",
+  "Liberty", "Control", "Sacrifice", "Purpose", "Evolution",
+
+  // Growth & Transformation
+  "Transformation", "Awakening", "Discovery", "Change", "Transition",
+  "Reinvention", "Adaptation", "Courage", "Beginning", "Ending",
+  "Journey", "Mistake", "Lesson", "Failure", "Recovery",
+  "Resilience", "Healing", "Breakthrough", "Momentum", "Clarity",
+
+  // Power & Influence
+  "Dominance", "Submission", "Authority", "Status", "Influence",
+  "Control", "Responsibility", "Power", "Impact", "Reputation",
+  "Hierarchy", "Strategy", "Leverage", "Ambition", "Discipline",
+
+  // Inner Conflict
+  "Temptation", "Addiction", "Doubt", "Obsession", "Procrastination",
+  "Escape", "Denial", "Resistance", "Limits", "Fear",
+  "Courage", "Self-Sabotage", "Pressure", "Expectation", "Failure",
+
+  // Modern Themes
+  "Social Media", "AI", "Capitalism", "Privacy", "Success",
+  "Viralit", "Fame", "Authenticity", "Relevance", "Identity",
+  "Disruption", "Innovation", "Productivity", "Distraction", "Attention",
+
+  // Relationships
+  "Marriage", "Friendship", "Family", "Attraction", "Commitment",
+  "Devotion", "Intimacy", "Trust", "Loyalty", "Sacrifice",
+  "Communication", "Jealousy", "Support", "Respect", "Partnership",
+
+  // Strength & Discipline
+  "Routine", "Consistency", "Focus", "Determination", "Grit",
+  "Perseverance", "Endurance", "Sacrifice", "Tolerance", "Patience",
+  "Balance", "Moderation", "Simplicity", "Order", "Structure",
+
+  // Creative & Intellectual
+  "Creativity", "Inspiration", "Imagination", "Logic", "Reason",
+  "Intellect", "Analysis", "Strategy", "Vision", "Art",
+  "Design", "Innovation", "Thinking", "Clarity", "Discovery"
+
 ];
 
 // Sound system using Web Audio API
