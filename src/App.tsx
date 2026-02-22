@@ -125,14 +125,17 @@ const useSoundSystem = () => {
   return { init, playWhirr, playTick, playTock, playThum, playAmbientStart, playToneShift };
 };
 
-// Timer hook
+// Timer hook - use ref for seconds in start() so delayed start (e.g. after Repeat) sees latest value
 const useTimer = (initialSeconds: number) => {
   const [seconds, setSeconds] = useState(initialSeconds);
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const secondsRef = useRef(seconds);
+  secondsRef.current = seconds;
 
   const start = useCallback(() => {
-    if (!isRunning && seconds > 0) {
+    const current = secondsRef.current;
+    if (!isRunning && current > 0) {
       setIsRunning(true);
       intervalRef.current = setInterval(() => {
         setSeconds((prev) => {
@@ -145,7 +148,7 @@ const useTimer = (initialSeconds: number) => {
         });
       }, 1000);
     }
-  }, [isRunning, seconds]);
+  }, [isRunning]);
 
   const pause = useCallback(() => {
     setIsRunning(false);
@@ -162,6 +165,7 @@ const useTimer = (initialSeconds: number) => {
       intervalRef.current = null;
     }
     setSeconds(newSeconds);
+    secondsRef.current = newSeconds;
   }, [initialSeconds]);
 
   return { seconds, isRunning, start, pause, reset };
@@ -240,12 +244,8 @@ function App() {
   };
 
   const handleRepeat = () => {
-    thinkTimer.reset(TIMER_SECONDS);
     speakTimer.reset(TIMER_SECONDS);
-    setPhase('think');
-    setScreen('revealed');
-    setShowThink(true);
-    setShowButton(true);
+    setTimeout(() => speakTimer.start(), 200);
   };
 
   useEffect(() => {
@@ -432,6 +432,7 @@ function App() {
                 viewBox="0 0 300 300"
                 aria-hidden
               >
+                {/* Outer circle - subtle track */}
                 <circle
                   cx="150"
                   cy="150"
@@ -439,33 +440,48 @@ function App() {
                   fill="none"
                   stroke="#1a1a1a"
                   strokeWidth="0.5"
-                  strokeOpacity="0.15"
+                  strokeOpacity="0.12"
                 />
+                {/* Active progress - thicker, darker for depth */}
                 <motion.circle
                   cx="150"
                   cy="150"
                   r="140"
                   fill="none"
                   stroke="#1a1a1a"
-                  strokeWidth="1"
+                  strokeWidth="2"
                   strokeLinecap="round"
                   strokeDasharray={circumference}
                   animate={{ strokeDashoffset }}
                   transition={{ duration: 0.3, ease: 'linear' }}
                   transform="rotate(-90 150 150)"
-                  style={{ opacity: 0.4 }}
+                  style={{ opacity: 0.55 }}
                 />
               </svg>
 
-              <div 
-                className="relative z-0 text-5xl sm:text-6xl md:text-7xl tracking-[0.12em] text-[#1a1a1a]"
-                style={{
-                  fontFamily: '"Cormorant Garamond", Georgia, serif',
-                  fontWeight: 400,
-                  letterSpacing: '0.08em',
-                }}
-              >
-                {currentWord}
+              <div className="relative z-0 flex flex-col items-center gap-1">
+                <div 
+                  className="text-5xl sm:text-6xl md:text-7xl tracking-[0.12em] text-[#1a1a1a]"
+                  style={{
+                    fontFamily: '"Cormorant Garamond", Georgia, serif',
+                    fontWeight: 400,
+                    letterSpacing: '0.08em',
+                  }}
+                >
+                  {currentWord}
+                </div>
+                {/* Small digital timer - muted; deep burgundy when ≤5 sec left */}
+                <span
+                  className={`text-xs tabular-nums tracking-widest transition-colors duration-300 ${
+                    activeSeconds <= 5 ? 'text-[#5C3232]' : 'text-[#1a1a1a]/45'
+                  }`}
+                  style={{
+                    fontFamily: '"Inter", sans-serif',
+                    fontWeight: 300,
+                  }}
+                >
+                  {Math.floor(activeSeconds / 60)}:{(activeSeconds % 60).toString().padStart(2, '0')}
+                </span>
               </div>
             </div>
 
