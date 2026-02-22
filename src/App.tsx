@@ -408,7 +408,7 @@ function App() {
       <div className="absolute top-8 right-8 z-50">
         <span 
           className="text-[10px] tracking-[0.4em] text-[#1a1a1a]/30 uppercase"
-          style={{ fontFamily: '"Inter", sans-serif', fontWeight: 200 }}
+          style={{ fontFamily: '"Inter", sans-serif', fontWeight: 300 }}
         >
           @ADNANELOGS
         </span>
@@ -416,20 +416,20 @@ function App() {
 
       {/* Screen: Before Spin */}
       {screen === 'before' && (
-        <motion.div
+        <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.6 }}
           className="min-h-screen w-full flex flex-col items-center justify-center"
         >
-          <div className="flex flex-col items-center space-y-12">
-            {/* THINK / SPEAK — compact, architectural */}
-            <div className="relative flex flex-col items-center">
+          <div className="flex flex-col items-center space-y-12 w-full max-w-[min(100%,28rem)] px-4">
+            {/* THINK / SPEAK — compact, architectural; responsive size to avoid overflow */}
+            <div className="relative flex flex-col items-center w-full">
               <div className="flex flex-col items-center gap-6">
-                <div className="flex items-center justify-center gap-3">
+                <div className="flex items-center justify-center gap-2 sm:gap-3">
                   <span
-                    className="text-5xl uppercase tracking-[0.35em] text-[#1a1a1a]/75"
+                    className="text-3xl sm:text-4xl md:text-5xl uppercase tracking-[0.2em] sm:tracking-[0.35em] text-[#1a1a1a]/75"
                     style={{ fontFamily: '"Inter", sans-serif',  fontWeight: 400 }}
                   >
                     Think
@@ -437,15 +437,15 @@ function App() {
                   <button
                     type="button"
                     onClick={() => setOpenPreset((p) => (p === 'think' ? null : 'think'))}
-                    className="text-xl tabular-nums text-[#1a1a1a]/50 hover:text-[#1a1a1a]/70 transition-colors"
+                    className="text-base sm:text-xl tabular-nums text-[#1a1a1a]/50 hover:text-[#1a1a1a]/70 transition-colors shrink-0"
                     style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                   >
                     {thinkSeconds}s
                   </button>
                 </div>
-                <div className="flex items-center justify-center gap-3">
+                <div className="flex items-center justify-center gap-2 sm:gap-3">
                   <span
-                    className="text-5xl uppercase tracking-[0.35em] text-[#1a1a1a]/75"
+                    className="text-3xl sm:text-4xl md:text-5xl uppercase tracking-[0.2em] sm:tracking-[0.35em] text-[#1a1a1a]/75"
                     style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                   >
                     Speak
@@ -453,7 +453,7 @@ function App() {
                   <button
                     type="button"
                     onClick={() => setOpenPreset((p) => (p === 'speak' ? null : 'speak'))}
-                    className="text-xl tabular-nums text-[#1a1a1a]/50 hover:text-[#1a1a1a]/70 transition-colors"
+                    className="text-base sm:text-xl tabular-nums text-[#1a1a1a]/50 hover:text-[#1a1a1a]/70 transition-colors shrink-0"
                     style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                   >
                     {speakSeconds}s
@@ -501,9 +501,9 @@ function App() {
               </AnimatePresence>
             </div>
 
-            {/* Reel: dashes — spaced for breathing room */}
+            {/* Reel: dashes — tighter gap on mobile so they don’t stretch across the screen */}
             <div 
-              className="flex items-center justify-center text-6xl sm:text-7xl md:text-8xl lg:text-9xl gap-8 sm:gap-10 md:gap-12"
+              className="flex items-center justify-center text-4xl sm:text-5xl md:text-6xl lg:text-7xl gap-1.5 sm:gap-4 md:gap-6 lg:gap-8 w-fit max-w-full"
               style={{
                 fontFamily: '"Cormorant Garamond", Georgia, serif',
                 fontWeight: 300,
@@ -555,9 +555,9 @@ function App() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.4 }}
-          className="min-h-screen w-full flex flex-col items-center justify-center"
+          className="min-h-screen w-full flex flex-col items-center justify-center px-4"
         >
-          <div className="flex flex-col items-center space-y-8">
+          <div className="flex flex-col items-center space-y-8 w-full max-w-[min(100%,32rem)]">
             {/* "Think." text */}
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -619,9 +619,9 @@ function App() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
-          className="min-h-screen w-full flex flex-col items-center justify-center"
+          className="min-h-screen w-full flex flex-col items-center justify-center px-4"
         >
-          <div className="flex flex-col items-center space-y-8">
+          <div className="flex flex-col items-center space-y-8 w-full max-w-[min(100%,32rem)]">
             {/* Phase indicator */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -674,11 +674,10 @@ function App() {
 
               <div className="relative z-0 flex flex-col items-center gap-1">
                 <div 
-                  className="text-5xl sm:text-6xl md:text-7xl tracking-[0.12em] text-[#1a1a1a]"
+                  className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-[0.08em] sm:tracking-[0.12em] text-[#1a1a1a] px-2"
                   style={{
                     fontFamily: '"Cormorant Garamond", Georgia, serif',
                     fontWeight: 400,
-                    letterSpacing: '0.08em',
                   }}
                 >
                   {currentWord}

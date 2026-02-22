@@ -137,7 +137,7 @@ export const WordReveal = ({ word, isRevealing, onRevealComplete, onLetterSettle
   return (
     <div className="relative">
       <motion.div
-        className="flex items-center justify-center text-6xl sm:text-7xl md:text-8xl lg:text-9xl tracking-[0.12em]"
+        className="flex items-center justify-center text-4xl sm:text-6xl md:text-7xl lg:text-8xl tracking-[0.08em] sm:tracking-[0.12em]"
         animate={{ scale: showUnderline ? 1.02 : 1 }}
         transition={{ duration: 0.4 }}
       >
