@@ -25,7 +25,7 @@ const topics = [
 
   // Success & Ambition
   "Ambition", "Mastery", "Excellence", "Consistency", "Progress",
-  MOMENTUM, DRIVE, FAILURE, SUCCESS, SACRIFICE,
+  "Momentum", "Drive", "Failure", "Success", "Sacrifice",
   "Potential", "Commitment", "Legacy", "Impact", "Risk",
   "Competition", "Leadership", "Responsibility", "Accountability", "Visionary",
   "Perseverance", "Strategy", "Discipline", "Productivity", "Execution",
