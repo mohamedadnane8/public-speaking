@@ -125,7 +125,22 @@ const useSoundSystem = () => {
     osc.stop(ctx.currentTime + 0.6);
   }, []);
 
-  return { init, playWhirr, playTick, playTock, playThum, playAmbientStart, playToneShift };
+  const playLowTimeWarning = useCallback(() => {
+    if (!ctxRef.current) return;
+    const ctx = ctxRef.current;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = 320;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.035, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.25);
+  }, []);
+
+  return { init, playWhirr, playTick, playTock, playThum, playAmbientStart, playToneShift, playLowTimeWarning };
 };
 
 // Timer hook - use ref for seconds in start() so delayed start (e.g. after Repeat) sees latest value
@@ -195,7 +210,8 @@ function App() {
   const circumference = 2 * Math.PI * 140;
   const strokeDashoffset = circumference * (1 - progress);
   
-  const { init, playWhirr, playTick, playTock, playThum, playAmbientStart, playToneShift } = useSoundSystem();
+  const { init, playWhirr, playTick, playTock, playThum, playAmbientStart, playToneShift, playLowTimeWarning } = useSoundSystem();
+  const lowTimePlayedRef = useRef(false);
 
   const handleSpin = () => {
     init();
@@ -228,6 +244,7 @@ function App() {
   const handleStartThinking = () => {
     setScreen('timer');
     setPhase('think');
+    lowTimePlayedRef.current = false;
     thinkTimer.reset(thinkSeconds);
     speakTimer.reset(speakSeconds);
     playAmbientStart();
@@ -237,6 +254,7 @@ function App() {
   const handleGoToSpeak = () => {
     thinkTimer.pause();
     setPhase('speak');
+    lowTimePlayedRef.current = false;
     speakTimer.reset(speakSeconds);
     playToneShift();
     setTimeout(() => speakTimer.start(), 300);
@@ -249,6 +267,7 @@ function App() {
   };
 
   const handleRepeat = () => {
+    lowTimePlayedRef.current = false;
     speakTimer.reset(speakSeconds);
     setTimeout(() => speakTimer.start(), 200);
   };
@@ -261,6 +280,7 @@ function App() {
       phase === 'think'
     ) {
       setPhase('speak');
+      lowTimePlayedRef.current = false;
       speakTimer.reset(speakSeconds);
       playToneShift();
       setTimeout(() => speakTimer.start(), 300);
@@ -275,6 +295,15 @@ function App() {
     speakTimer.reset,
     speakTimer.start,
   ]);
+
+  // Low-time warning sound when timer hits 5 seconds (once per countdown)
+  useEffect(() => {
+    if (screen !== 'timer' || activeSeconds > 5 || activeSeconds === 0) return;
+    if (activeSeconds === 5 && !lowTimePlayedRef.current) {
+      playLowTimeWarning();
+      lowTimePlayedRef.current = true;
+    }
+  }, [screen, activeSeconds, playLowTimeWarning]);
 
   return (
     <div 
@@ -530,17 +559,19 @@ function App() {
                   strokeWidth="0.5"
                   strokeOpacity="0.12"
                 />
-                {/* Active progress - thicker, darker for depth */}
+                {/* Active progress - thicker, darker for depth; burgundy when ≤5s */}
                 <motion.circle
                   cx="150"
                   cy="150"
                   r="140"
                   fill="none"
-                  stroke="#1a1a1a"
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeDasharray={circumference}
-                  animate={{ strokeDashoffset }}
+                  animate={{
+                    strokeDashoffset,
+                    stroke: activeSeconds <= 5 ? '#7A2E2E' : '#1a1a1a',
+                  }}
                   transition={{ duration: 0.3, ease: 'linear' }}
                   transform="rotate(-90 150 150)"
                   style={{ opacity: 0.55 }}
@@ -558,10 +589,10 @@ function App() {
                 >
                   {currentWord}
                 </div>
-                {/* Small digital timer - muted; deep burgundy when ≤5 sec left */}
+                {/* Digital timer - muted; deep burgundy when ≤5 sec left */}
                 <span
-                  className={`text-xs tabular-nums tracking-widest transition-colors duration-300 ${
-                    activeSeconds <= 5 ? 'text-[#5C3232]' : 'text-[#1a1a1a]/45'
+                  className={`text-2xl sm:text-3xl tabular-nums tracking-widest transition-colors duration-300 ${
+                    activeSeconds <= 5 ? 'text-[#7A2E2E]' : 'text-[#1a1a1a]/45'
                   }`}
                   style={{
                     fontFamily: '"Inter", sans-serif',
