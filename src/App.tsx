@@ -1,301 +1,222 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { WordReveal } from './components/WordReveal';
-import './App.css';
+import { useState, useEffect, useRef, useCallback } from "react";
+import { AnimatePresence } from "framer-motion";
+import { useTimer } from "./hooks/useTimer";
+import { useSoundSystem } from "./hooks/useSoundSystem";
+import { useSession } from "./hooks/useSession";
+import { getModeConfig, getNextMode } from "./lib/modes";
+import { getRandomWord } from "./lib/words";
+import { calculateOverallScore, hasAllRatings } from "./lib/scoring";
+import type { Screen, SessionRatings, RatingValue } from "./types/session";
 
-const THINK_PRESETS = [15, 30, 45, 60] as const;
-const SPEAK_PRESETS = [30, 60, 90, 120] as const;
+// Screens
+import { HomeScreen } from "./screens/HomeScreen";
+import { WordRevealScreen } from "./screens/WordRevealScreen";
+import { ThinkScreen } from "./screens/ThinkScreen";
+import { SpeakScreen } from "./screens/SpeakScreen";
+import { PlaybackScreen } from "./screens/PlaybackScreen";
+import { ReflectScreen } from "./screens/ReflectScreen";
+import { ScoreSummaryScreen } from "./screens/ScoreSummaryScreen";
 
-// Refined topic list - single powerful words
-const topics = [
+import "./App.css";
 
-  // Core Human Values
-  "Courage", "Clarity", "Presence", "Balance", "Growth",
-  "Vision", "Purpose", "Wisdom", "Truth", "Beauty",
-  "Harmony", "Freedom", "Strength", "Kindness", "Patience",
-  "Focus", "Trust", "Hope", "Joy", "Peace",
-  "Love", "Passion", "Grace", "Humility", "Resilience",
+// Check if recording is supported
+const isRecordingSupported =
+  typeof window !== "undefined" &&
+  window.isSecureContext &&
+  typeof window.MediaRecorder !== "undefined" &&
+  typeof navigator !== "undefined" &&
+  typeof navigator.mediaDevices !== "undefined" &&
+  typeof navigator.mediaDevices.getUserMedia === "function";
 
-  // Identity & Self
-  "Identity", "Ego", "Self-Worth", "Confidence", "Doubt",
-  "Authenticity", "Insecurity", "Discipline", "Integrity", "Vulnerability",
-  "Selfishness", "Maturity", "Awareness", "Intention", "Character",
-  "Values", "Morality", "Belief", "Perception", "Mindset",
-  "Habits", "Instinct", "Impulse", "Control", "Independence",
-
-  // Success & Ambition
-  "Ambition", "Mastery", "Excellence", "Consistency", "Progress",
-  "Momentum", "Drive", "Failure", "Success", "Sacrifice",
-  "Potential", "Commitment", "Legacy", "Impact", "Risk",
-  "Competition", "Leadership", "Responsibility", "Accountability", "Visionary",
-  "Perseverance", "Strategy", "Discipline", "Productivity", "Execution",
-
-  // Emotional Depth
-  "Fear", "Anxiety", "Shame", "Pride", "Envy",
-  "Gratitude", "Jealousy", "Guilt", "Loneliness", "Contentment",
-  " Compassion", "Empathy", "Forgiveness", "Rejection", "Abandonment",
-  "Heartbreak", "Trust", "Loyalty", "Betrayal", "Redemption",
-
-  // Social & Communication
-  "Charisma", "Influence", "Persuasion", "Dialogue", "Listening",
-  "Conflict", "Respect", "Boundaries", "Community", "Reputation",
-  "Honesty", "Diplomacy", "Authority", "Negotiation", "Transparency",
-  "Presence", "Humor", "Silence", "Expression", "Storytelling",
-
-  // Philosophy & Abstract
-  "Time", "Meaning", "Existence", "Destiny", "Fate",
-  "Chaos", "Order", "Power", "Truth", "Illusion",
-  "Reality", "Consciousness", "Mortality", "Faith", "Doubt",
-  "Justice", "Ethics", "Dignity", "Honor", "Mercy",
-  "Liberty", "Control", "Sacrifice", "Purpose", "Evolution",
-
-  // Growth & Transformation
-  "Transformation", "Awakening", "Discovery", "Change", "Transition",
-  "Reinvention", "Adaptation", "Courage", "Beginning", "Ending",
-  "Journey", "Mistake", "Lesson", "Failure", "Recovery",
-  "Resilience", "Healing", "Breakthrough", "Momentum", "Clarity",
-
-  // Power & Influence
-  "Dominance", "Submission", "Authority", "Status", "Influence",
-  "Control", "Responsibility", "Power", "Impact", "Reputation",
-  "Hierarchy", "Strategy", "Leverage", "Ambition", "Discipline",
-
-  // Inner Conflict
-  "Temptation", "Addiction", "Doubt", "Obsession", "Procrastination",
-  "Escape", "Denial", "Resistance", "Limits", "Fear",
-  "Courage", "Self-Sabotage", "Pressure", "Expectation", "Failure",
-
-  // Modern Themes
-  "Social Media", "AI", "Capitalism", "Privacy", "Success",
-  "Viralit", "Fame", "Authenticity", "Relevance", "Identity",
-  "Disruption", "Innovation", "Productivity", "Distraction", "Attention",
-
-  // Relationships
-  "Marriage", "Friendship", "Family", "Attraction", "Commitment",
-  "Devotion", "Intimacy", "Trust", "Loyalty", "Sacrifice",
-  "Communication", "Jealousy", "Support", "Respect", "Partnership",
-
-  // Strength & Discipline
-  "Routine", "Consistency", "Focus", "Determination", "Grit",
-  "Perseverance", "Endurance", "Sacrifice", "Tolerance", "Patience",
-  "Balance", "Moderation", "Simplicity", "Order", "Structure",
-
-  // Creative & Intellectual
-  "Creativity", "Inspiration", "Imagination", "Logic", "Reason",
-  "Intellect", "Analysis", "Strategy", "Vision", "Art",
-  "Design", "Innovation", "Thinking", "Clarity", "Discovery"
-
-];
-
-// Sound system using Web Audio API
-const useSoundSystem = () => {
-  const ctxRef = useRef<AudioContext | null>(null);
-  const isInitRef = useRef(false);
-
-  const init = useCallback(() => {
-    if (!isInitRef.current) {
-      ctxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      isInitRef.current = true;
-    }
-  }, []);
-
-  const playWhirr = useCallback(() => {
-    if (!ctxRef.current) return;
-    const ctx = ctxRef.current;
-    const bufferSize = ctx.sampleRate * 0.3;
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * 0.1;
-    }
-    const noise = ctx.createBufferSource();
-    noise.buffer = buffer;
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 200;
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.03, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(ctx.destination);
-    noise.start();
-  }, []);
-
-  const playTick = useCallback(() => {
-    if (!ctxRef.current) return;
-    const ctx = ctxRef.current;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.frequency.value = 180;
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.025, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + 0.03);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.03);
-  }, []);
-
-  const playTock = useCallback(() => {
-    if (!ctxRef.current) return;
-    const ctx = ctxRef.current;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.frequency.value = 220;
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.04, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + 0.08);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.08);
-  }, []);
-
-  const playThum = useCallback(() => {
-    if (!ctxRef.current) return;
-    const ctx = ctxRef.current;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.frequency.value = 80;
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.08, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + 0.5);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.5);
-  }, []);
-
-  const playAmbientStart = useCallback(() => {
-    if (!ctxRef.current) return;
-    const ctx = ctxRef.current;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.frequency.value = 120;
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.02, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 2);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 2);
-  }, []);
-
-  const playToneShift = useCallback(() => {
-    if (!ctxRef.current) return;
-    const ctx = ctxRef.current;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.frequency.value = 200;
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.04, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + 0.6);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.6);
-  }, []);
-
-  const playLowTimeWarning = useCallback(() => {
-    if (!ctxRef.current) return;
-    const ctx = ctxRef.current;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.frequency.value = 320;
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.035, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.25);
-  }, []);
-
-  return { init, playWhirr, playTick, playTock, playThum, playAmbientStart, playToneShift, playLowTimeWarning };
-};
-
-// Timer hook - use ref for seconds in start() so delayed start (e.g. after Repeat) sees latest value
-const useTimer = (initialSeconds: number) => {
-  const [seconds, setSeconds] = useState(initialSeconds);
-  const [isRunning, setIsRunning] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const secondsRef = useRef(seconds);
-  secondsRef.current = seconds;
-
-  const start = useCallback(() => {
-    const current = secondsRef.current;
-    if (!isRunning && current > 0) {
-      setIsRunning(true);
-      intervalRef.current = setInterval(() => {
-        setSeconds((prev) => {
-          if (prev <= 1) {
-            setIsRunning(false);
-            if (intervalRef.current) clearInterval(intervalRef.current);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-  }, [isRunning]);
-
-  const pause = useCallback(() => {
-    setIsRunning(false);
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }, []);
-
-  const reset = useCallback((newSeconds: number = initialSeconds) => {
-    setIsRunning(false);
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    setSeconds(newSeconds);
-    secondsRef.current = newSeconds;
-  }, [initialSeconds]);
-
-  return { seconds, isRunning, start, pause, reset };
-};
-
-// Main App
 function App() {
-  const [screen, setScreen] = useState<'before' | 'revealing' | 'revealed' | 'timer'>('before');
-  const [currentWord, setCurrentWord] = useState('');
+  // Screen state
+  const [screen, setScreen] = useState<Screen>("HOME");
+
+  // Mode configuration
+  const [modeConfig, setModeConfig] = useState(getModeConfig("EXPLANATION"));
+  const [manualThinkSeconds, setManualThinkSeconds] = useState(30);
+  const [manualSpeakSeconds, setManualSpeakSeconds] = useState(60);
+
+  // Word state
+  const [currentWord, setCurrentWord] = useState("");
   const [spinKey, setSpinKey] = useState(0);
   const [isRevealing, setIsRevealing] = useState(false);
-  const [showThink, setShowThink] = useState(false);
-  const [showButton, setShowButton] = useState(false);
-  const [phase, setPhase] = useState<'think' | 'speak'>('think');
-  const [thinkSeconds, setThinkSeconds] = useState(30);
-  const [speakSeconds, setSpeakSeconds] = useState(60);
-  const [openPreset, setOpenPreset] = useState<'think' | 'speak' | null>(null);
+  const [showWordActions, setShowWordActions] = useState(false);
 
-  const thinkTimer = useTimer(30);
-  const speakTimer = useTimer(60);
-  const activeDuration = phase === 'think' ? thinkSeconds : speakSeconds;
-  const activeSeconds = phase === 'think' ? thinkTimer.seconds : speakTimer.seconds;
-  const progress = 1 - (activeSeconds / activeDuration);
-  const circumference = 2 * Math.PI * 140;
-  const strokeDashoffset = circumference * (1 - progress);
-  
-  const { init, playWhirr, playTick, playTock, playThum, playAmbientStart, playToneShift, playLowTimeWarning } = useSoundSystem();
-  const lowTimePlayedRef = useRef(false);
+  // Recording permission state
+  const [hasRecordingPermission, setHasRecordingPermission] = useState<boolean | null>(null);
+  const [isRequestingPermission, setIsRequestingPermission] = useState(false);
+
+  // Reflect state
+  const [ratings, setRatings] = useState<Partial<SessionRatings>>({});
+  const [notes, setNotes] = useState("");
+
+  // Playback state
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Hooks
+  const {
+    init,
+    playWhirr,
+    playTick,
+    playTock,
+    playThum,
+    playAmbientStart,
+    playToneShift,
+    playCountdownTick,
+  } = useSoundSystem();
+
+  const {
+    session,
+    audio,
+    isRecording,
+    usedWords,
+    createSession,
+    completeSession,
+    cancelSession,
+    startRecording,
+    stopRecording,
+    resetRecording,
+    addUsedWord,
+    resetUsedWords,
+  } = useSession();
+
+  const lastTickPlayedRef = useRef<number>(-1);
+
+  // Effective timings
+  const effectiveThinkSeconds = modeConfig.name === "MANUAL" ? manualThinkSeconds : modeConfig.thinkSeconds;
+  const effectiveSpeakSeconds = modeConfig.name === "MANUAL" ? manualSpeakSeconds : modeConfig.speakSeconds;
+
+  // Timers
+  const thinkTimer = useTimer(
+    effectiveThinkSeconds,
+    () => transitionToSpeak(),
+    (secondsLeft) => {
+      if (secondsLeft <= 5 && secondsLeft > 0 && secondsLeft !== lastTickPlayedRef.current) {
+        playCountdownTick();
+        lastTickPlayedRef.current = secondsLeft;
+      }
+    }
+  );
+
+  const speakTimer = useTimer(
+    effectiveSpeakSeconds,
+    () => transitionToPlayback(),
+    (secondsLeft) => {
+      if (secondsLeft <= 5 && secondsLeft > 0 && secondsLeft !== lastTickPlayedRef.current) {
+        playCountdownTick();
+        lastTickPlayedRef.current = secondsLeft;
+      }
+    }
+  );
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      thinkTimer.cleanup();
+      speakTimer.cleanup();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  // Reset tick counter on screen change
+  useEffect(() => {
+    if (screen === "THINK" || screen === "SPEAK") {
+      lastTickPlayedRef.current = -1;
+    }
+  }, [screen]);
+
+  // Handle app backgrounding
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && (screen === "THINK" || screen === "SPEAK")) {
+        handleCancel("APP_BACKGROUND");
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [screen]);
+
+  // Navigation handlers
+  const transitionToSpeak = useCallback(async () => {
+    thinkTimer.pause();
+    setScreen("SPEAK");
+    lastTickPlayedRef.current = -1;
+    speakTimer.reset(effectiveSpeakSeconds);
+    playToneShift();
+    await startRecording();
+    setTimeout(() => speakTimer.start(), 300);
+  }, [effectiveSpeakSeconds, thinkTimer, speakTimer, playToneShift, startRecording]);
+
+  const transitionToPlayback = useCallback(async () => {
+    speakTimer.pause();
+    await stopRecording();
+    setScreen("PLAYBACK");
+  }, [speakTimer, stopRecording]);
+
+  const handleCancel = useCallback(
+    (reason: Parameters<typeof cancelSession>[0]) => {
+      thinkTimer.pause();
+      speakTimer.pause();
+      if (isRecording) stopRecording();
+      cancelSession(reason);
+      resetState();
+      setScreen("HOME");
+    },
+    [thinkTimer, speakTimer, isRecording, stopRecording, cancelSession]
+  );
+
+  const resetState = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    resetRecording();
+    setRatings({});
+    setNotes("");
+    setIsPlaying(false);
+  };
+
+  // Home screen handlers
+  const handleModeCycle = () => {
+    setModeConfig(getModeConfig(getNextMode(modeConfig.name)));
+  };
+
+  const handleManualTimeChange = (type: "think" | "speak", delta: number) => {
+    if (type === "think") {
+      setManualThinkSeconds((prev) => Math.max(5, Math.min(300, prev + delta)));
+    } else {
+      setManualSpeakSeconds((prev) => Math.max(5, Math.min(300, prev + delta)));
+    }
+  };
+
+  const handleRequestPermission = async () => {
+    if (!isRecordingSupported) return;
+    setIsRequestingPermission(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      setHasRecordingPermission(true);
+    } catch {
+      setHasRecordingPermission(false);
+    }
+    setIsRequestingPermission(false);
+  };
 
   const handleSpin = () => {
     init();
-    const randomIndex = Math.floor(Math.random() * topics.length);
-    const newWord = topics[randomIndex];
+    const newWord = getRandomWord(usedWords);
     setCurrentWord(newWord);
+    addUsedWord(newWord);
     setSpinKey((k) => k + 1);
-    setScreen('revealing');
+    setScreen("WORD_REVEAL");
     setIsRevealing(true);
-    setShowThink(false);
-    setShowButton(false);
-    
+    setShowWordActions(false);
+
     playWhirr();
     let tickCount = 0;
     const tickInterval = setInterval(() => {
@@ -305,108 +226,112 @@ function App() {
     }, 60);
   };
 
+  // Word reveal handlers
   const handleRevealComplete = () => {
     setIsRevealing(false);
-    setScreen('revealed');
     playThum();
-    setTimeout(() => setShowThink(true), 400);
-    setTimeout(() => setShowButton(true), 700);
+    setTimeout(() => setShowWordActions(true), 400);
   };
 
-  const handleStartThinking = () => {
-    setScreen('timer');
-    setPhase('think');
-    lowTimePlayedRef.current = false;
-    thinkTimer.reset(thinkSeconds);
-    speakTimer.reset(speakSeconds);
+  const handleStartSession = () => {
+    createSession(modeConfig.name, currentWord, effectiveThinkSeconds, effectiveSpeakSeconds);
+    setScreen("THINK");
+    lastTickPlayedRef.current = -1;
+    thinkTimer.reset(effectiveThinkSeconds);
+    speakTimer.reset(effectiveSpeakSeconds);
     playAmbientStart();
     setTimeout(() => thinkTimer.start(), 500);
   };
 
-  const handleGoToSpeak = () => {
-    thinkTimer.pause();
-    setPhase('speak');
-    lowTimePlayedRef.current = false;
-    speakTimer.reset(speakSeconds);
-    playToneShift();
-    setTimeout(() => speakTimer.start(), 300);
+  // Playback handlers
+  const handlePlayToggle = () => {
+    if (!audio?.fileUri) return;
+    if (isPlaying) {
+      audioRef.current?.pause();
+      setIsPlaying(false);
+    } else {
+      if (!audioRef.current) {
+        audioRef.current = new Audio(audio.fileUri);
+        audioRef.current.onended = () => setIsPlaying(false);
+      }
+      audioRef.current.play();
+      setIsPlaying(true);
+    }
   };
 
-  const handleBackToSpinner = () => {
-    thinkTimer.reset(thinkSeconds);
-    speakTimer.reset(speakSeconds);
-    setScreen('before');
+  // Reflect handlers
+  const handleRateChange = (criteria: keyof SessionRatings, value: RatingValue) => {
+    setRatings((prev) => ({ ...prev, [criteria]: value }));
   };
 
+  const handleDoneRating = () => {
+    if (!hasAllRatings(ratings)) return;
+    const overallScore = calculateOverallScore(ratings);
+    completeSession(ratings, overallScore, notes);
+    setScreen("SCORE_SUMMARY");
+  };
+
+  // Score summary handlers
+  const handleNewSession = () => {
+    resetState();
+    resetUsedWords();
+    setHasRecordingPermission(null);
+    setScreen("HOME");
+  };
+
+  const handleReplay = () => {
+    if (!audio?.fileUri) return;
+    if (!audioRef.current) {
+      audioRef.current = new Audio(audio.fileUri);
+      audioRef.current.onended = () => setIsPlaying(false);
+    }
+    audioRef.current.currentTime = 0;
+    audioRef.current.play();
+    setIsPlaying(true);
+  };
+
+  // Back navigation
   const handleBack = () => {
-    if (screen === 'timer') {
-      thinkTimer.pause();
-      speakTimer.pause();
-      setScreen('before');
-    } else if (screen === 'revealing' || screen === 'revealed') setScreen('before');
-  };
-
-  const handleRepeat = () => {
-    lowTimePlayedRef.current = false;
-    speakTimer.reset(speakSeconds);
-    setTimeout(() => speakTimer.start(), 200);
-  };
-
-  useEffect(() => {
-    if (
-      thinkTimer.seconds === 0 &&
-      !thinkTimer.isRunning &&
-      screen === 'timer' &&
-      phase === 'think'
-    ) {
-      setPhase('speak');
-      lowTimePlayedRef.current = false;
-      speakTimer.reset(speakSeconds);
-      playToneShift();
-      setTimeout(() => speakTimer.start(), 300);
+    switch (screen) {
+      case "WORD_REVEAL":
+        setScreen("HOME");
+        break;
+      case "THINK":
+      case "SPEAK":
+      case "PLAYBACK":
+        handleCancel("USER_BACK");
+        break;
+      case "REFLECT":
+        setScreen("PLAYBACK");
+        break;
+      case "SCORE_SUMMARY":
+        handleNewSession();
+        break;
     }
-  }, [
-    thinkTimer.seconds,
-    thinkTimer.isRunning,
-    screen,
-    phase,
-    speakSeconds,
-    playToneShift,
-    speakTimer.reset,
-    speakTimer.start,
-  ]);
-
-  // Low-time warning sound when timer hits 5 seconds (once per countdown)
-  useEffect(() => {
-    if (screen !== 'timer' || activeSeconds > 5 || activeSeconds === 0) return;
-    if (activeSeconds === 5 && !lowTimePlayedRef.current) {
-      playLowTimeWarning();
-      lowTimePlayedRef.current = true;
-    }
-  }, [screen, activeSeconds, playLowTimeWarning]);
+  };
 
   return (
-    <div 
+    <div
       className="min-h-screen bg-[#FDF6F0] selection:bg-[#1a1a1a]/15 selection:text-[#1a1a1a]"
       style={{ fontFamily: '"Inter", "Cormorant Garamond", sans-serif' }}
     >
-      {/* Back - top left, only when there is a previous screen */}
-      {(screen === 'revealing' || screen === 'revealed' || screen === 'timer') && (
+      {/* Back button */}
+      {screen !== "HOME" && (
         <button
           type="button"
           onClick={handleBack}
           className="absolute top-8 left-8 z-50 p-2 text-[#1a1a1a]/50 hover:text-[#1a1a1a]/80 transition-colors"
           aria-label="Back"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
         </button>
       )}
 
-      {/* Subtle branding - always visible */}
+      {/* Branding */}
       <div className="absolute top-8 right-8 z-50">
-        <span 
+        <span
           className="text-[10px] tracking-[0.4em] text-[#1a1a1a]/30 uppercase"
           style={{ fontFamily: '"Inter", sans-serif', fontWeight: 300 }}
         >
@@ -414,327 +339,92 @@ function App() {
         </span>
       </div>
 
-      {/* Screen: Before Spin */}
-      {screen === 'before' && (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.6 }}
-          className="min-h-screen w-full flex flex-col items-center justify-center"
-        >
-          <div className="flex flex-col items-center space-y-12 w-full max-w-[min(100%,28rem)] px-4">
-            {/* THINK / SPEAK — compact, architectural; responsive size to avoid overflow */}
-            <div className="relative flex flex-col items-center w-full">
-              <div className="flex flex-col items-center gap-6">
-                <div className="flex items-center justify-center gap-2 sm:gap-3">
-                  <span
-                    className="text-3xl sm:text-4xl md:text-5xl uppercase tracking-[0.2em] sm:tracking-[0.35em] text-[#1a1a1a]/75"
-                    style={{ fontFamily: '"Inter", sans-serif',  fontWeight: 400 }}
-                  >
-                    Think
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setOpenPreset((p) => (p === 'think' ? null : 'think'))}
-                    className="text-base sm:text-xl tabular-nums text-[#1a1a1a]/50 hover:text-[#1a1a1a]/70 transition-colors shrink-0"
-                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-                  >
-                    {thinkSeconds}s
-                  </button>
-                </div>
-                <div className="flex items-center justify-center gap-2 sm:gap-3">
-                  <span
-                    className="text-3xl sm:text-4xl md:text-5xl uppercase tracking-[0.2em] sm:tracking-[0.35em] text-[#1a1a1a]/75"
-                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-                  >
-                    Speak
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setOpenPreset((p) => (p === 'speak' ? null : 'speak'))}
-                    className="text-base sm:text-xl tabular-nums text-[#1a1a1a]/50 hover:text-[#1a1a1a]/70 transition-colors shrink-0"
-                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-                  >
-                    {speakSeconds}s
-                  </button>
-                </div>
-              </div>
+      <AnimatePresence mode="wait">
+        {screen === "HOME" && (
+          <HomeScreen
+            modeConfig={modeConfig}
+            manualThinkSeconds={manualThinkSeconds}
+            manualSpeakSeconds={manualSpeakSeconds}
+            isRecordingSupported={isRecordingSupported}
+            hasRecordingPermission={hasRecordingPermission}
+            isRequestingPermission={isRequestingPermission}
+            onModeCycle={handleModeCycle}
+            onManualTimeChange={handleManualTimeChange}
+            onRequestPermission={handleRequestPermission}
+            onSpin={handleSpin}
+          />
+        )}
 
-              <AnimatePresence>
-                {openPreset && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      aria-hidden
-                      onClick={() => setOpenPreset(null)}
-                    />
-                    <motion.div
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute top-full left-1/2 -translate-x-1/2 mt-3 z-50 py-1.5 px-1 bg-[#FDF6F0] border border-[#1a1a1a]/12 rounded shadow-sm flex gap-0.5"
-                    >
-                      {(openPreset === 'think' ? THINK_PRESETS : SPEAK_PRESETS).map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => {
-                            if (openPreset === 'think') setThinkSeconds(s);
-                            else setSpeakSeconds(s);
-                            setOpenPreset(null);
-                          }}
-                          className={`min-w-[2.5rem] py-1 text-[11px] tracking-wide transition-colors ${
-                            (openPreset === 'think' ? thinkSeconds === s : speakSeconds === s)
-                              ? 'text-[#1a1a1a] font-medium'
-                              : 'text-[#1a1a1a]/60 hover:text-[#1a1a1a]'
-                          }`}
-                          style={{ fontFamily: '"Inter", sans-serif' }}
-                        >
-                          {s}s
-                        </button>
-                      ))}
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
+        {screen === "WORD_REVEAL" && (
+          <WordRevealScreen
+            word={currentWord}
+            modeConfig={modeConfig}
+            spinKey={spinKey}
+            isRevealing={isRevealing}
+            showActions={showWordActions}
+            onRevealComplete={handleRevealComplete}
+            onLetterSettle={playTock}
+            onSpinAgain={handleSpin}
+            onStart={handleStartSession}
+          />
+        )}
 
-            {/* Reel: dashes — tighter gap on mobile so they don’t stretch across the screen */}
-            <div 
-              className="flex items-center justify-center text-4xl sm:text-5xl md:text-6xl lg:text-7xl gap-1.5 sm:gap-4 md:gap-6 lg:gap-8 w-fit max-w-full"
-              style={{
-                fontFamily: '"Cormorant Garamond", Georgia, serif',
-                fontWeight: 300,
-              }}
-            >
-              {[...Array(6)].map((_, i) => (
-                <motion.span
-                  key={i}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: i * 0.05, duration: 0.4 }}
-                  className="text-[#1a1a1a]/50"
-                >
-                  —
-                </motion.span>
-              ))}
-            </div>
+        {screen === "THINK" && (
+          <ThinkScreen
+            word={currentWord}
+            seconds={thinkTimer.seconds}
+            totalSeconds={effectiveThinkSeconds}
+            onSkip={transitionToSpeak}
+          />
+        )}
 
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4, duration: 0.5 }}
-              className="text-sm tracking-[0.15em] text-[#1a1a1a]/80"
-              style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
-            >
-              Spin the word.
-            </motion.p>
+        {screen === "SPEAK" && (
+          <SpeakScreen
+            word={currentWord}
+            seconds={speakTimer.seconds}
+            totalSeconds={effectiveSpeakSeconds}
+            isRecording={isRecording}
+            audio={audio}
+          />
+        )}
 
-            <motion.button
-              onClick={handleSpin}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6, duration: 0.5 }}
-              whileHover={{ backgroundColor: 'rgba(26, 26, 26, 0.08)' }}
-              whileTap={{ scale: 0.98 }}
-              className="px-12 py-4 border border-[#1a1a1a]/60 text-[#1a1a1a] text-xs tracking-[0.35em] uppercase transition-all duration-300 hover:border-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-[#FDF6F0]"
-              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-            >
-              SPIN
-            </motion.button>
-          </div>
-        </motion.div>
-      )}
+        {screen === "PLAYBACK" && (
+          <PlaybackScreen
+            word={currentWord}
+            modeConfig={modeConfig}
+            audio={audio}
+            isPlaying={isPlaying}
+            onPlayToggle={handlePlayToggle}
+            onContinue={() => {
+              if (isPlaying) {
+                audioRef.current?.pause();
+                setIsPlaying(false);
+              }
+              setScreen("REFLECT");
+            }}
+          />
+        )}
 
-      {/* Screen: Revealing / Revealed */}
-      {(screen === 'revealing' || screen === 'revealed') && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.4 }}
-          className="min-h-screen w-full flex flex-col items-center justify-center px-4"
-        >
-          <div className="flex flex-col items-center space-y-8 w-full max-w-[min(100%,32rem)]">
-            {/* "Think." text */}
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: showThink ? 0.7 : 0, y: showThink ? 0 : -10 }}
-              transition={{ duration: 0.5 }}
-              className="h-6"
-            >
-              <span 
-                className="text-sm tracking-[0.2em] text-[#1a1a1a]/80"
-                style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
-              >
-                Are you ready to start?
-              </span>
-            </motion.div>
+        {screen === "REFLECT" && (
+          <ReflectScreen
+            ratings={ratings}
+            notes={notes}
+            canComplete={hasAllRatings(ratings)}
+            onRateChange={handleRateChange}
+            onNotesChange={setNotes}
+            onDone={handleDoneRating}
+          />
+        )}
 
-            {/* Word reveal - key forces remount each spin so animation always runs */}
-            <WordReveal 
-              key={spinKey}
-              word={currentWord} 
-              isRevealing={isRevealing}
-              onRevealComplete={handleRevealComplete}
-              onLetterSettle={playTock}
-            />
-
-            {/* START THINKING + Respin */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: showButton ? 1 : 0, y: showButton ? 0 : 10 }}
-              transition={{ duration: 0.5 }}
-              className="pt-8 flex flex-col items-center gap-4"
-            >
-              <motion.button
-                onClick={handleStartThinking}
-                whileHover={{ backgroundColor: 'rgba(26, 26, 26, 0.92)' }}
-                whileTap={{ scale: 0.98 }}
-                className="px-10 py-4 bg-[#1a1a1a] text-[#FDF6F0]/90 text-xs tracking-[0.25em] uppercase transition-all duration-300"
-                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-              >
-                START
-              </motion.button>
-              <motion.button
-                onClick={handleSpin}
-                whileHover={{ backgroundColor: 'rgba(26, 26, 26, 0.06)' }}
-                whileTap={{ scale: 0.98 }}
-                className="text-[11px] tracking-[0.1.5em] uppercase text-[#1a1a1a]/55 hover:text-[#1a1a1a]/80 transition-colors"
-                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-              >
-                Spin again
-              </motion.button>
-            </motion.div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Screen: Timer */}
-      {screen === 'timer' && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
-          className="min-h-screen w-full flex flex-col items-center justify-center px-4"
-        >
-          <div className="flex flex-col items-center space-y-8 w-full max-w-[min(100%,32rem)]">
-            {/* Phase indicator */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="h-6"
-            >
-              <span 
-                className="text-sm tracking-[0.2em] text-[#1a1a1a]/80"
-                style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
-              >
-                {phase === 'think' ? 'Think.' : 'Speak.'}
-              </span>
-            </motion.div>
-
-            {/* Word with circular timer - fixed height so circle doesn't overlap buttons */}
-            <div className="relative min-h-[320px] sm:min-h-[360px] md:min-h-[400px] w-full flex flex-col items-center justify-center">
-              <svg 
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] sm:w-[320px] sm:h-[320px] md:w-[360px] md:h-[360px] pointer-events-none"
-                viewBox="0 0 300 300"
-                aria-hidden
-              >
-                {/* Outer circle - subtle track */}
-                <circle
-                  cx="150"
-                  cy="150"
-                  r="140"
-                  fill="none"
-                  stroke="#1a1a1a"
-                  strokeWidth="0.5"
-                  strokeOpacity="0.12"
-                />
-                {/* Active progress - thicker, darker for depth; burgundy when ≤5s */}
-                <motion.circle
-                  cx="150"
-                  cy="150"
-                  r="140"
-                  fill="none"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  animate={{
-                    strokeDashoffset,
-                    stroke: activeSeconds <= 5 ? '#7A2E2E' : '#1a1a1a',
-                  }}
-                  transition={{ duration: 0.3, ease: 'linear' }}
-                  transform="rotate(-90 150 150)"
-                  style={{ opacity: 0.55 }}
-                />
-              </svg>
-
-              <div className="relative z-0 flex flex-col items-center gap-1">
-                <div 
-                  className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-[0.08em] sm:tracking-[0.12em] text-[#1a1a1a] px-2"
-                  style={{
-                    fontFamily: '"Cormorant Garamond", Georgia, serif',
-                    fontWeight: 400,
-                  }}
-                >
-                  {currentWord}
-                </div>
-                {/* Digital timer - muted; deep burgundy when ≤5 sec left */}
-                <span
-                  className={`text-2xl sm:text-3xl tabular-nums tracking-widest transition-colors duration-300 ${
-                    activeSeconds <= 5 ? 'text-[#7A2E2E]' : 'text-[#1a1a1a]/45'
-                  }`}
-                  style={{
-                    fontFamily: '"Inter", sans-serif',
-                    fontWeight: 300,
-                  }}
-                >
-                  {Math.floor(activeSeconds / 60)}:{(activeSeconds % 60).toString().padStart(2, '0')}
-                </span>
-              </div>
-            </div>
-
-            {/* Timer actions - below the circle, clearly separated */}
-            <div className="flex flex-col sm:flex-row items-center gap-3 pt-10 mt-2 relative z-10">
-              {phase === 'think' ? (
-                <motion.button
-                  onClick={handleGoToSpeak}
-                  whileHover={{ backgroundColor: 'rgba(26, 26, 26, 0.08)' }}
-                  whileTap={{ scale: 0.98 }}
-                  className="px-8 py-3 border border-[#1a1a1a]/60 text-[#1a1a1a] text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:border-[#1a1a1a]"
-                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-                >
-                  SPEAK
-                </motion.button>
-              ) : (
-                <>
-                  <motion.button
-                    onClick={handleBackToSpinner}
-                    whileHover={{ backgroundColor: 'rgba(26, 26, 26, 0.08)' }}
-                    whileTap={{ scale: 0.98 }}
-                    className="px-8 py-3 border border-[#1a1a1a]/60 text-[#1a1a1a] text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:border-[#1a1a1a]"
-                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-                  >
-                    New Word
-                  </motion.button>
-                  <motion.button
-                    onClick={handleRepeat}
-                    whileHover={{ backgroundColor: 'rgba(26, 26, 26, 0.92)' }}
-                    whileTap={{ scale: 0.98 }}
-                    className="px-8 py-3 bg-[#1a1a1a] text-[#FDF6F0]/90 text-xs tracking-[0.25em] uppercase transition-all duration-300"
-                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-                  >
-                    Try Again
-                  </motion.button>
-                </>
-              )}
-            </div>
-          </div>
-        </motion.div>
-      )}
+        {screen === "SCORE_SUMMARY" && session?.overallScore !== undefined && (
+          <ScoreSummaryScreen
+            overallScore={session.overallScore}
+            audio={audio}
+            onNewSession={handleNewSession}
+            onReplay={handleReplay}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
