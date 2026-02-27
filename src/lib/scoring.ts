@@ -19,6 +19,8 @@ export function calculateOverallScore(ratings: SessionRatings): number {
     convertRatingToTenScale(ratings.ending),
     convertRatingToTenScale(ratings.confidence),
     convertRatingToTenScale(ratings.clarity),
+    convertRatingToTenScale(ratings.authenticity),
+    convertRatingToTenScale(ratings.languageExpression),
   ];
   
   const average = converted.reduce((sum, val) => sum + val, 0) / converted.length;
@@ -26,7 +28,7 @@ export function calculateOverallScore(ratings: SessionRatings): number {
 }
 
 /**
- * Check if all 5 ratings are provided
+ * Check if all 7 ratings are provided
  */
 export function hasAllRatings(ratings: Partial<SessionRatings>): ratings is SessionRatings {
   return (
@@ -34,6 +36,8 @@ export function hasAllRatings(ratings: Partial<SessionRatings>): ratings is Sess
     ratings.structure !== undefined &&
     ratings.ending !== undefined &&
     ratings.confidence !== undefined &&
-    ratings.clarity !== undefined
+    ratings.clarity !== undefined &&
+    ratings.authenticity !== undefined &&
+    ratings.languageExpression !== undefined
   );
 }

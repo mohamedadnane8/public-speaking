@@ -30,6 +30,9 @@ export interface SessionRatings {
   structure: RatingValue;
   ending: RatingValue;
   confidence: RatingValue;
+  clarity: RatingValue;
+  authenticity: RatingValue;
+  languageExpression: RatingValue;
 }
 
 export interface SessionAudio {

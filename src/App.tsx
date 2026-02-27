@@ -218,6 +218,7 @@ function App() {
   const [spinKey, setSpinKey] = useState(0);
   const [isRevealing, setIsRevealing] = useState(false);
   const [showWordActions, setShowWordActions] = useState(false);
+  const [usedWords, setUsedWords] = useState<string[]>([]);
 
   // Rating state
   const [ratings, setRatings] = useState<Partial<SessionRatings>>({});
@@ -234,6 +235,10 @@ function App() {
     typeof navigator !== "undefined" &&
     typeof navigator.mediaDevices !== "undefined" &&
     typeof navigator.mediaDevices.getUserMedia === "function";
+
+  // Recording permission state
+  const [hasRecordingPermission, setHasRecordingPermission] = useState<boolean | null>(null);
+  const [isRequestingPermission, setIsRequestingPermission] = useState(false);
 
   // Hooks
   const { init, playWhirr, playTick, playTock, playThum, playAmbientStart, playToneShift, playCountdownTick } = useSoundSystem();
@@ -373,10 +378,27 @@ function App() {
     }
   };
 
+  const handleRequestRecordingPermission = async () => {
+    if (!isRecordingSupported) return;
+    
+    setIsRequestingPermission(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Immediately stop the stream - we just wanted to check permission
+      stream.getTracks().forEach((track) => track.stop());
+      setHasRecordingPermission(true);
+    } catch (error) {
+      console.error("Permission denied:", error);
+      setHasRecordingPermission(false);
+    }
+    setIsRequestingPermission(false);
+  };
+
   const handleSpin = () => {
     init();
-    const newWord = getRandomWord();
+    const newWord = getRandomWord(usedWords);
     setCurrentWord(newWord);
+    setUsedWords((prev) => [...prev, newWord]);
     setSpinKey((k) => k + 1);
     setScreen("WORD_REVEAL");
     setIsRevealing(true);
@@ -504,6 +526,9 @@ function App() {
     resetRecording();
     setSession(null);
     setRatings({});
+    setNotes("");
+    setUsedWords([]);
+    setHasRecordingPermission(null);
     setIsPlaying(false);
     
     setScreen("HOME");
@@ -727,6 +752,53 @@ function App() {
               >
                 Spin the word.
               </motion.p>
+
+              {/* Recording permission request */}
+              {isRecordingSupported && hasRecordingPermission !== true && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5, duration: 0.5 }}
+                  className="flex flex-col items-center gap-3"
+                >
+                  <motion.button
+                    onClick={handleRequestRecordingPermission}
+                    disabled={isRequestingPermission}
+                    whileHover={{ backgroundColor: "rgba(122, 46, 46, 0.08)" }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-8 py-3 border border-[#7A2E2E]/60 text-[#7A2E2E] text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:border-[#7A2E2E] hover:bg-[#7A2E2E] hover:text-[#FDF6F0] disabled:opacity-50"
+                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                  >
+                    {isRequestingPermission ? "Requesting..." : "Enable Recording"}
+                  </motion.button>
+                  <span
+                    className="text-[10px] tracking-[0.1em] text-[#1a1a1a]/40 text-center"
+                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                  >
+                    {hasRecordingPermission === false 
+                      ? "Permission denied — you can still practice without recording" 
+                      : "Required to review your practice"}
+                  </span>
+                </motion.div>
+              )}
+
+              {/* Recording granted indicator */}
+              {isRecordingSupported && hasRecordingPermission === true && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5, duration: 0.5 }}
+                  className="flex items-center gap-2"
+                >
+                  <div className="w-2 h-2 rounded-full bg-[#2E7A4E]" />
+                  <span
+                    className="text-[10px] tracking-[0.15em] uppercase text-[#2E7A4E]/80"
+                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                  >
+                    Recording enabled
+                  </span>
+                </motion.div>
+              )}
 
               <motion.button
                 onClick={handleSpin}
@@ -1062,24 +1134,63 @@ function App() {
                 className="flex flex-col items-center gap-8"
               >
                 <RatingDots
+                  label="Structure"
+                  value={ratings.structure}
+                  onChange={(v) => handleRateChange("structure", v)}
+                />
+                <RatingDots
                   label="Opening"
                   value={ratings.opening}
                   onChange={(v) => handleRateChange("opening", v)}
                 />
                 <RatingDots
-                  label="Structure"
-                  value={ratings.structure}
-                  onChange={(v) => handleRateChange("structure", v)}
+                  label="Clarity"
+                  value={ratings.clarity}
+                  onChange={(v) => handleRateChange("clarity", v)}
+                />
+                <RatingDots
+                  label="Language & Expression"
+                  value={ratings.languageExpression}
+                  onChange={(v) => handleRateChange("languageExpression", v)}
+                />
+            
+                <RatingDots
+                  label="Authenticity"
+                  value={ratings.authenticity}
+                  onChange={(v) => handleRateChange("authenticity", v)}
+                />
+                <RatingDots
+                  label="Confidence"
+                  value={ratings.confidence}
+                  onChange={(v) => handleRateChange("confidence", v)}
                 />
                 <RatingDots
                   label="Ending"
                   value={ratings.ending}
                   onChange={(v) => handleRateChange("ending", v)}
                 />
-                <RatingDots
-                  label="Confidence"
-                  value={ratings.confidence}
-                  onChange={(v) => handleRateChange("confidence", v)}
+              </motion.div>
+
+              {/* Notes textarea */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="w-full max-w-sm"
+              >
+                <label
+                  className="block text-xs tracking-[0.2em] uppercase text-[#1a1a1a]/60 mb-3 text-center"
+                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                >
+                  Notes
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add your thoughts..."
+                  rows={4}
+                  className="w-full px-4 py-3 bg-transparent border border-[#1a1a1a]/20 text-sm text-[#1a1a1a]/80 placeholder:text-[#1a1a1a]/30 resize-none focus:outline-none focus:border-[#1a1a1a]/50 transition-colors"
+                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                 />
               </motion.div>
 
