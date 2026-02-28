@@ -9,7 +9,7 @@ interface UseSessionReturn {
   isRecording: boolean;
   usedWords: string[];
   createSession: (mode: Mode, word: string, thinkSeconds: number, speakSeconds: number) => Session;
-  completeSession: (ratings: SessionRatings, overallScore: number, notes?: string) => void;
+  completeSession: (ratings: SessionRatings, overallScore: number, notes?: string, transcript?: string) => void;
   cancelSession: (reason: Session["cancelReason"]) => void;
   startRecording: () => Promise<void>;
   stopRecording: () => Promise<void>;
@@ -48,7 +48,8 @@ export function useSession(): UseSessionReturn {
   const completeSession = useCallback((
     ratings: SessionRatings,
     overallScore: number,
-    notes?: string
+    notes?: string,
+    transcript?: string
   ) => {
     if (!session) return;
     
@@ -57,6 +58,7 @@ export function useSession(): UseSessionReturn {
       ratings,
       overallScore,
       notes: notes?.trim() || undefined,
+      transcript: transcript?.trim() || undefined,
       completedAt: new Date().toISOString(),
       audio: audio || { available: false },
     };

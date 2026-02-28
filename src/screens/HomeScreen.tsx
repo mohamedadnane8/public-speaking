@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
 import type { ModeConfig } from "@/lib/modes";
 
+import { isTranscriptionSupported } from "@/hooks/useTranscription";
+
 interface HomeScreenProps {
   modeConfig: ModeConfig;
   manualThinkSeconds: number;
@@ -11,8 +13,7 @@ interface HomeScreenProps {
   onModeCycle: () => void;
   onManualTimeChange: (type: "think" | "speak", delta: number) => void;
   onRequestPermission: () => void;
-  onSpin: () => void;
-}
+  onSpin: () => void;}
 
 export function HomeScreen({
   modeConfig,
@@ -235,18 +236,30 @@ export function HomeScreen({
           SPIN
         </motion.button>
 
-        {/* Recording warning */}
-        {!isRecordingSupported && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8, duration: 0.5 }}
-            className="text-[10px] tracking-[0.1em] text-[#7A2E2E]/70 text-center"
-            style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-          >
-            Recording not available — use HTTPS or enable microphone permissions
-          </motion.p>
-        )}
+        {/* Feature indicators */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8, duration: 0.5 }}
+          className="flex flex-col items-center gap-2"
+        >
+          {!isRecordingSupported && (
+            <span
+              className="text-[10px] tracking-[0.1em] text-[#7A2E2E]/70 text-center"
+              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+            >
+              Recording not available — use HTTPS
+            </span>
+          )}
+          {!isTranscriptionSupported && (
+            <span
+              className="text-[10px] tracking-[0.1em] text-[#1a1a1a]/30 text-center"
+              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+            >
+              Transcription not supported in this browser
+            </span>
+          )}
+        </motion.div>
       </div>
     </motion.div>
   );

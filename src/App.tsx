@@ -3,6 +3,7 @@ import { AnimatePresence } from "framer-motion";
 import { useTimer } from "./hooks/useTimer";
 import { useSoundSystem } from "./hooks/useSoundSystem";
 import { useSession } from "./hooks/useSession";
+import { useTranscription, isTranscriptionSupported } from "./hooks/useTranscription";
 import { getModeConfig, getNextMode } from "./lib/modes";
 import { getRandomWord } from "./lib/words";
 import { calculateOverallScore, hasAllRatings } from "./lib/scoring";
@@ -84,6 +85,15 @@ function App() {
 
   const lastTickPlayedRef = useRef<number>(-1);
 
+  // Transcription hook
+  const {
+    transcript,
+    isTranscribing,
+    startTranscription,
+    stopTranscription,
+    resetTranscription,
+  } = useTranscription();
+
   // Effective timings
   const effectiveThinkSeconds = modeConfig.name === "MANUAL" ? manualThinkSeconds : modeConfig.thinkSeconds;
   const effectiveSpeakSeconds = modeConfig.name === "MANUAL" ? manualSpeakSeconds : modeConfig.speakSeconds;
@@ -149,14 +159,18 @@ function App() {
     speakTimer.reset(effectiveSpeakSeconds);
     playToneShift();
     await startRecording();
+    if (isTranscriptionSupported) {
+      startTranscription();
+    }
     setTimeout(() => speakTimer.start(), 300);
-  }, [effectiveSpeakSeconds, thinkTimer, speakTimer, playToneShift, startRecording]);
+  }, [effectiveSpeakSeconds, thinkTimer, speakTimer, playToneShift, startRecording, startTranscription]);
 
   const transitionToPlayback = useCallback(async () => {
     speakTimer.pause();
     await stopRecording();
+    stopTranscription();
     setScreen("PLAYBACK");
-  }, [speakTimer, stopRecording]);
+  }, [speakTimer, stopRecording, stopTranscription]);
 
   const handleCancel = useCallback(
     (reason: Parameters<typeof cancelSession>[0]) => {
@@ -176,6 +190,7 @@ function App() {
       audioRef.current = null;
     }
     resetRecording();
+    resetTranscription();
     setRatings({});
     setNotes("");
     setIsPlaying(false);
@@ -267,7 +282,7 @@ function App() {
   const handleDoneRating = () => {
     if (!hasAllRatings(ratings)) return;
     const overallScore = calculateOverallScore(ratings);
-    completeSession(ratings, overallScore, notes);
+    completeSession(ratings, overallScore, notes, transcript);
     setScreen("SCORE_SUMMARY");
   };
 
@@ -385,6 +400,7 @@ function App() {
             totalSeconds={effectiveSpeakSeconds}
             isRecording={isRecording}
             audio={audio}
+            isTranscribing={isTranscribing}
           />
         )}
 
@@ -393,6 +409,7 @@ function App() {
             word={currentWord}
             modeConfig={modeConfig}
             audio={audio}
+            transcript={transcript}
             isPlaying={isPlaying}
             onPlayToggle={handlePlayToggle}
             onContinue={() => {

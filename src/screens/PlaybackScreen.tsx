@@ -6,15 +6,16 @@ interface PlaybackScreenProps {
   word: string;
   modeConfig: ModeConfig;
   audio: SessionAudio | null | undefined;
+  transcript: string | undefined;
   isPlaying: boolean;
   onPlayToggle: () => void;
-  onContinue: () => void;
-}
+  onContinue: () => void;}
 
 export function PlaybackScreen({
   word,
   modeConfig,
   audio,
+  transcript,
   isPlaying,
   onPlayToggle,
   onContinue,
@@ -103,6 +104,29 @@ export function PlaybackScreen({
             Continue
           </motion.button>
         </div>
+
+        {/* Transcript */}
+        {transcript && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="w-full max-w-md mt-6"
+          >
+            <h3
+              className="text-xs tracking-[0.2em] uppercase text-[#1a1a1a]/60 mb-3 text-center"
+              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+            >
+              Transcript
+            </h3>
+            <div
+              className="px-4 py-3 bg-[#1a1a1a]/5 border border-[#1a1a1a]/10 text-sm text-[#1a1a1a]/80 max-h-40 overflow-y-auto"
+              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+            >
+              {transcript}
+            </div>
+          </motion.div>
+        )}
       </div>
     </motion.div>
   );
