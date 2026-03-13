@@ -94,15 +94,14 @@ export function PlaybackScreen({
             </div>
           )}
 
-          <motion.button
+          <button
+            type="button"
             onClick={onContinue}
-            whileHover={{ backgroundColor: "rgba(26, 26, 26, 0.06)" }}
-            whileTap={{ scale: 0.98 }}
-            className="text-[11px] tracking-[0.15em] uppercase text-[#1a1a1a]/55 hover:text-[#1a1a1a]/80 transition-colors"
+            className="text-[11px] tracking-[0.15em] uppercase text-[#1a1a1a]/55 hover:text-[#1a1a1a]/80 transition-colors px-4 py-2 hover:bg-[#1a1a1a]/5 rounded cursor-pointer"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
             Continue
-          </motion.button>
+          </button>
         </div>
 
         {/* Transcript */}
