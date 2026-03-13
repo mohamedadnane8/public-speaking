@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { AnimatePresence } from "framer-motion";
+import { Toaster, toast } from "sonner";
 import { useTimer } from "./hooks/useTimer";
 import { useSoundSystem } from "./hooks/useSoundSystem";
 import { useSession } from "./hooks/useSession";
@@ -54,7 +55,14 @@ function App() {
 
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+
+  // Save & advice state
+  const [isSaving, setIsSaving] = useState(false);
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
   // Hooks
   const {
@@ -130,8 +138,32 @@ function App() {
         audioRef.current.pause();
         audioRef.current = null;
       }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
     };
   }, []);
+
+  // Audio progress tracking
+  useEffect(() => {
+    const updateProgress = () => {
+      if (audioRef.current) {
+        setCurrentTime(audioRef.current.currentTime);
+        setDuration(audioRef.current.duration || 0);
+      }
+      animationFrameRef.current = requestAnimationFrame(updateProgress);
+    };
+    
+    if (isPlaying) {
+      animationFrameRef.current = requestAnimationFrame(updateProgress);
+    }
+    
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [isPlaying]);
 
   // Reset tick counter on screen change
   useEffect(() => {
@@ -189,11 +221,16 @@ function App() {
       audioRef.current.pause();
       audioRef.current = null;
     }
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
     resetRecording();
     resetTranscription();
     setRatings({});
     setNotes("");
     setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
   };
 
   // Home screen handlers
@@ -268,9 +305,34 @@ function App() {
       if (!audioRef.current) {
         audioRef.current = new Audio(audio.fileUri);
         audioRef.current.onended = () => setIsPlaying(false);
+        // Set initial duration when loaded
+        audioRef.current.onloadedmetadata = () => {
+          setDuration(audioRef.current?.duration || 0);
+        };
       }
       audioRef.current.play();
       setIsPlaying(true);
+    }
+  };
+
+  const handleSeek = (time: number) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = Math.max(0, Math.min(time, duration));
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleSkipBackward = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 5);
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleSkipForward = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = Math.min(duration, audioRef.current.currentTime + 5);
+      setCurrentTime(audioRef.current.currentTime);
     }
   };
 
@@ -294,13 +356,114 @@ function App() {
     setScreen("HOME");
   };
 
+  // Google OAuth and save handler
+  const handleSaveAndGetAdvice = useCallback(async () => {
+    if (!googleClientId) {
+      toast.error("Google OAuth not configured");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      // Load Google Identity Services script if not already loaded
+      if (!(window as unknown as { google?: unknown }).google) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://accounts.google.com/gsi/client";
+          script.async = true;
+          script.defer = true;
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("Failed to load Google script"));
+          document.body.appendChild(script);
+        });
+      }
+
+      const google = (window as unknown as { google: { accounts: { oauth2: { initTokenClient: (config: {
+        client_id: string;
+        scope: string;
+        callback: (response: { access_token?: string; error?: string }) => void;
+      }) => { requestAccessToken: () => void } } } } }).google;
+
+      // Initialize Google OAuth client
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: googleClientId,
+        scope: "openid email profile",
+        callback: async (response) => {
+          if (response.error) {
+            toast.error("Google sign-in failed");
+            setIsSaving(false);
+            return;
+          }
+
+          try {
+            // Step 1: Authenticate with Google (idToken only)
+            const authRes = await fetch("http://localhost:5000/api/auth/google", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                idToken: response.access_token,
+              }),
+            });
+
+            if (!authRes.ok) {
+              throw new Error("Authentication failed");
+            }
+
+            const authData = await authRes.json();
+            
+            // Step 2: Save session with auth token
+            const saveRes = await fetch("http://localhost:5000/api/sessions/record", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${authData.token}`,
+              },
+              body: JSON.stringify(session),
+            });
+
+            if (!saveRes.ok) {
+              throw new Error("Failed to save session");
+            }
+
+            const saveData = await saveRes.json();
+            toast.success("Session saved! Check your email for advice.");
+            
+            // Optionally show advice if returned immediately
+            if (saveData.advice) {
+              toast.info(saveData.advice, { duration: 10000 });
+            }
+          } catch (error) {
+            toast.error("Failed to save session. Please try again.");
+            console.error("Save error:", error);
+          } finally {
+            setIsSaving(false);
+          }
+        },
+      });
+
+      // Trigger Google OAuth popup
+      client.requestAccessToken();
+    } catch (error) {
+      toast.error("Something went wrong");
+      console.error("OAuth error:", error);
+      setIsSaving(false);
+    }
+  }, [googleClientId, session]);
+
   const handleReplay = () => {
     if (!audio?.fileUri) return;
     if (!audioRef.current) {
       audioRef.current = new Audio(audio.fileUri);
       audioRef.current.onended = () => setIsPlaying(false);
+      audioRef.current.onloadedmetadata = () => {
+        setDuration(audioRef.current?.duration || 0);
+      };
     }
     audioRef.current.currentTime = 0;
+    setCurrentTime(0);
     audioRef.current.play();
     setIsPlaying(true);
   };
@@ -330,6 +493,19 @@ function App() {
       className="min-h-screen bg-[#FDF6F0] selection:bg-[#1a1a1a]/15 selection:text-[#1a1a1a]"
       style={{ fontFamily: '"Inter", "Cormorant Garamond", sans-serif' }}
     >
+      <Toaster 
+        position="top-center" 
+        toastOptions={{
+          style: {
+            background: '#1a1a1a',
+            color: '#FDF6F0',
+            fontFamily: '"Inter", sans-serif',
+            fontSize: '13px',
+            border: 'none',
+            borderRadius: '0',
+          },
+        }}
+      />
       {/* Back button */}
       {screen !== "HOME" && (
         <button
@@ -411,7 +587,12 @@ function App() {
             audio={audio}
             transcript={transcript}
             isPlaying={isPlaying}
+            currentTime={currentTime}
+            duration={duration}
             onPlayToggle={handlePlayToggle}
+            onSeek={handleSeek}
+            onSkipBackward={handleSkipBackward}
+            onSkipForward={handleSkipForward}
             onContinue={() => {
               if (isPlaying) {
                 audioRef.current?.pause();
@@ -437,8 +618,10 @@ function App() {
           <ScoreSummaryScreen
             overallScore={session.overallScore}
             audio={audio}
+            isSaving={isSaving}
             onNewSession={handleNewSession}
             onReplay={handleReplay}
+            onSaveAndGetAdvice={handleSaveAndGetAdvice}
           />
         )}
       </AnimatePresence>

@@ -4,15 +4,19 @@ import type { SessionAudio } from "@/types/session";
 interface ScoreSummaryScreenProps {
   overallScore: number;
   audio: SessionAudio | null | undefined;
+  isSaving?: boolean;
   onNewSession: () => void;
   onReplay: () => void;
+  onSaveAndGetAdvice: () => void;
 }
 
 export function ScoreSummaryScreen({
   overallScore,
   audio,
+  isSaving = false,
   onNewSession,
   onReplay,
+  onSaveAndGetAdvice,
 }: ScoreSummaryScreenProps) {
   return (
     <motion.div
@@ -58,6 +62,7 @@ export function ScoreSummaryScreen({
           transition={{ delay: 0.2 }}
           className="flex flex-col items-center gap-4"
         >
+          {/* Primary: Continue */}
           <motion.button
             onClick={onNewSession}
             whileHover={{ backgroundColor: "rgba(26, 26, 26, 0.92)" }}
@@ -65,7 +70,23 @@ export function ScoreSummaryScreen({
             className="px-12 py-4 bg-[#1a1a1a] text-[#FDF6F0]/90 text-xs tracking-[0.25em] uppercase transition-all duration-300"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            NEW SESSION
+            Continue
+          </motion.button>
+
+          {/* Secondary: Save & get advice */}
+          <motion.button
+            onClick={onSaveAndGetAdvice}
+            disabled={isSaving}
+            whileHover={isSaving ? {} : { backgroundColor: "rgba(26, 26, 26, 0.06)" }}
+            whileTap={isSaving ? {} : { scale: 0.98 }}
+            className={`text-[11px] tracking-[0.15em] uppercase transition-colors px-4 py-2 rounded ${
+              isSaving
+                ? "text-[#1a1a1a]/30 cursor-wait"
+                : "text-[#1a1a1a]/55 hover:text-[#1a1a1a]/80 hover:bg-[#1a1a1a]/5 cursor-pointer"
+            }`}
+            style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+          >
+            {isSaving ? "Saving..." : "Save & get advice"}
           </motion.button>
           
           {audio?.available && audio.fileUri && (
@@ -73,7 +94,7 @@ export function ScoreSummaryScreen({
               onClick={onReplay}
               whileHover={{ backgroundColor: "rgba(26, 26, 26, 0.06)" }}
               whileTap={{ scale: 0.98 }}
-              className="text-[11px] tracking-[0.15em] uppercase text-[#1a1a1a]/55 hover:text-[#1a1a1a]/80 transition-colors"
+              className="text-[11px] tracking-[0.15em] uppercase text-[#1a1a1a]/40 hover:text-[#1a1a1a]/70 transition-colors mt-2"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
               Replay Recording
