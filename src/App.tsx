@@ -28,6 +28,7 @@ import { PlaybackScreen } from "./screens/PlaybackScreen";
 import { ReflectScreen } from "./screens/ReflectScreen";
 import { ScoreSummaryScreen } from "./screens/ScoreSummaryScreen";
 import { HistoryScreen } from "./screens/HistoryScreen";
+import { FeatureRequestScreen } from "./screens/FeatureRequestScreen";
 import { AuthSuccessScreen } from "./screens/AuthSuccessScreen";
 import { AuthErrorScreen } from "./screens/AuthErrorScreen";
 
@@ -183,9 +184,11 @@ function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
   const [saveAttemptedSessionId, setSaveAttemptedSessionId] = useState<string | null>(null);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
   
   // Auth hook
-  const { user, isAuthenticated, isLoading: isAuthLoading, login } = useAuth();
+  const { user, isAuthenticated, isLoading: isAuthLoading, login, logout } = useAuth();
 
   // Hooks
   const {
@@ -274,6 +277,40 @@ function App() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!isAccountMenuOpen) return;
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      if (!accountMenuRef.current) return;
+      const target = event.target as Node;
+      if (!accountMenuRef.current.contains(target)) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsAccountMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isAccountMenuOpen]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setIsAccountMenuOpen(false);
+    }
+  }, [isAuthenticated]);
 
   // Audio progress tracking
   useEffect(() => {
@@ -525,6 +562,24 @@ function App() {
     setScreen("HISTORY");
   }, []);
 
+  const handleRequestFeature = useCallback(() => {
+    setIsAccountMenuOpen(false);
+    setScreen("FEATURE_REQUEST");
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout();
+      toast.success("Logged out");
+      setScreen("HOME");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      toast.error("Failed to log out");
+    } finally {
+      setIsAccountMenuOpen(false);
+    }
+  }, [logout]);
+
   const saveSessionAndGetAdvice = useCallback(async (
     sessionToSave: Session,
     options: { loginIfUnauthenticated: boolean; showToast: boolean }
@@ -730,6 +785,9 @@ function App() {
       case "HISTORY":
         setScreen("HOME");
         break;
+      case "FEATURE_REQUEST":
+        setScreen("HOME");
+        break;
       case "THINK":
       case "SPEAK":
       case "PLAYBACK":
@@ -791,13 +849,59 @@ function App() {
         {!isAuthLoading && (
           <>
             {isAuthenticated && user ? (
-              <div className="flex items-center">
-                <span
-                  className="text-xs text-[#1a1a1a]/70 hidden sm:block"
+              <div ref={accountMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsAccountMenuOpen((prev) => !prev)}
+                  className="flex items-center gap-2 text-xs text-[#1a1a1a]/70 hover:text-[#1a1a1a] transition-colors"
                   style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                  aria-haspopup="menu"
+                  aria-expanded={isAccountMenuOpen}
                 >
-                  {user.firstName} {user.lastName}
-                </span>
+                  <span className="hidden sm:inline">
+                    {user.firstName} {user.lastName}
+                  </span>
+                  <span className="sm:hidden">{user.firstName}</span>
+                  <svg
+                    className={`h-3 w-3 transition-transform ${isAccountMenuOpen ? "rotate-180" : ""}`}
+                    viewBox="0 0 12 12"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <path d="M2.5 4.5 6 8l3.5-3.5" />
+                  </svg>
+                </button>
+
+                {isAccountMenuOpen && (
+                  <div
+                    className="absolute right-0 mt-2 min-w-[12rem] border border-[#1a1a1a]/20 bg-[#FDF6F0] py-1 shadow-[0_8px_24px_rgba(26,26,26,0.08)]"
+                    role="menu"
+                    aria-label="Account menu"
+                  >
+                    <button
+                      type="button"
+                      onClick={handleRequestFeature}
+                      className="w-full px-4 py-2 text-left text-[11px] tracking-[0.08em] uppercase text-[#1a1a1a]/75 hover:bg-[#1a1a1a]/5 hover:text-[#1a1a1a] transition-colors"
+                      style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                      role="menuitem"
+                    >
+                      Request feature
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleLogout();
+                      }}
+                      className="w-full px-4 py-2 text-left text-[11px] tracking-[0.08em] uppercase text-[#7A2E2E]/80 hover:bg-[#7A2E2E]/8 hover:text-[#7A2E2E] transition-colors"
+                      style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                      role="menuitem"
+                    >
+                      Log out
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <button
@@ -848,9 +952,14 @@ function App() {
           />
         )}
 
+        {screen === "FEATURE_REQUEST" && (
+          <FeatureRequestScreen />
+        )}
+
         {screen === "WORD_REVEAL" && (
           <WordRevealScreen
             word={currentWord}
+            language={selectedLanguage}
             modeConfig={modeConfig}
             spinKey={spinKey}
             isRevealing={isRevealing}

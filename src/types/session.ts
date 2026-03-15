@@ -78,6 +78,7 @@ export interface Session {
 export type Screen = 
   | "HOME"
   | "HISTORY"
+  | "FEATURE_REQUEST"
   | "WORD_REVEAL"
   | "THINK"
   | "SPEAK"

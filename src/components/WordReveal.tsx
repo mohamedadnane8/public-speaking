@@ -1,17 +1,29 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef, useCallback } from "react";
+import { motion } from "framer-motion";
+import type { SessionLanguage } from "@/types/session";
 
 interface WordRevealProps {
   word: string;
+  language: SessionLanguage;
   isRevealing: boolean;
   onRevealComplete?: () => void;
   onLetterSettle?: () => void;
 }
 
-const CHAR_POOL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-const getRandomChar = () => CHAR_POOL[Math.floor(Math.random() * CHAR_POOL.length)];
+const LATIN_CHAR_POOL = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const ARABIC_CHAR_POOL = "ابتثجحخدذرزسشصضطظعغفقكلمنهوي";
+const SPIN_INTERVAL_MS = 80;
 
-const SPIN_INTERVAL_MS = 80; // Throttle so each letter is visible during spin
+const getRandomLatinChar = () =>
+  LATIN_CHAR_POOL[Math.floor(Math.random() * LATIN_CHAR_POOL.length)];
+
+const getRandomArabicWord = (template: string) =>
+  Array.from(template)
+    .map((char) => {
+      if (/\s/.test(char)) return char;
+      return ARABIC_CHAR_POOL[Math.floor(Math.random() * ARABIC_CHAR_POOL.length)];
+    })
+    .join("");
 
 const LetterColumn = ({
   targetChar,
@@ -24,7 +36,7 @@ const LetterColumn = ({
   isRevealing: boolean;
   onSettled: () => void;
 }) => {
-  const [displayChar, setDisplayChar] = useState('—');
+  const [displayChar, setDisplayChar] = useState("—");
   const [isSettled, setIsSettled] = useState(false);
   const frameRef = useRef<number | null>(null);
   const lastSpinTimeRef = useRef(0);
@@ -33,6 +45,7 @@ const LetterColumn = ({
   useEffect(() => {
     if (!isRevealing) return;
 
+    setIsSettled(false);
     lastSpinTimeRef.current = 0;
     firstLetterShownRef.current = false;
     const startTime = performance.now();
@@ -45,13 +58,12 @@ const LetterColumn = ({
       const settleEnd = settleStart + settleDuration;
 
       if (elapsed < spinDuration) {
-        // Show a letter on the very first frame so we never stay on "—"
         if (!firstLetterShownRef.current) {
           firstLetterShownRef.current = true;
-          setDisplayChar(getRandomChar());
+          setDisplayChar(getRandomLatinChar());
         } else if (elapsed - lastSpinTimeRef.current >= SPIN_INTERVAL_MS) {
           lastSpinTimeRef.current = elapsed;
-          setDisplayChar(getRandomChar());
+          setDisplayChar(getRandomLatinChar());
         }
         frameRef.current = requestAnimationFrame(animate);
       } else if (elapsed < settleEnd) {
@@ -60,7 +72,7 @@ const LetterColumn = ({
         if (easeOut < 0.75) {
           if (elapsed - lastSpinTimeRef.current >= SPIN_INTERVAL_MS * 0.6) {
             lastSpinTimeRef.current = elapsed;
-            setDisplayChar(getRandomChar());
+            setDisplayChar(getRandomLatinChar());
           }
         } else {
           setDisplayChar(targetChar);
@@ -73,8 +85,7 @@ const LetterColumn = ({
       }
     };
 
-    // Show first random letter immediately so spinning is visible from frame one
-    setDisplayChar(getRandomChar());
+    setDisplayChar(getRandomLatinChar());
     frameRef.current = requestAnimationFrame(animate);
 
     return () => {
@@ -91,14 +102,14 @@ const LetterColumn = ({
         style={{
           fontFamily: '"Cormorant Garamond", Georgia, serif',
           fontWeight: isSettled ? 400 : 300,
-          letterSpacing: '0.08em',
-          color: '#1a1a1a',
+          letterSpacing: "0.08em",
+          color: "#1a1a1a",
           opacity: 1,
         }}
         animate={isSettled ? { scale: [1, 1.08, 1] } : { scale: 1 }}
         transition={
           isSettled
-            ? { duration: 0.35, times: [0, 0.4, 1], ease: 'easeOut' }
+            ? { duration: 0.35, times: [0, 0.4, 1], ease: "easeOut" }
             : { duration: 0.15 }
         }
       >
@@ -108,56 +119,166 @@ const LetterColumn = ({
   );
 };
 
-export const WordReveal = ({ word, isRevealing, onRevealComplete, onLetterSettle }: WordRevealProps) => {
+const ArabicWordColumn = ({
+  targetWord,
+  isRevealing,
+  onSettled,
+}: {
+  targetWord: string;
+  isRevealing: boolean;
+  onSettled: () => void;
+}) => {
+  const [displayWord, setDisplayWord] = useState("—");
+  const [isSettled, setIsSettled] = useState(false);
+  const frameRef = useRef<number | null>(null);
+  const lastSpinTimeRef = useRef(0);
+  const firstWordShownRef = useRef(false);
+
+  useEffect(() => {
+    if (!isRevealing) return;
+
+    setIsSettled(false);
+    lastSpinTimeRef.current = 0;
+    firstWordShownRef.current = false;
+    const startTime = performance.now();
+
+    const animate = () => {
+      const elapsed = performance.now() - startTime;
+      const spinDuration = 1300;
+      const settleDuration = 450;
+      const settleEnd = spinDuration + settleDuration;
+
+      if (elapsed < spinDuration) {
+        if (!firstWordShownRef.current) {
+          firstWordShownRef.current = true;
+          setDisplayWord(getRandomArabicWord(targetWord));
+        } else if (elapsed - lastSpinTimeRef.current >= SPIN_INTERVAL_MS) {
+          lastSpinTimeRef.current = elapsed;
+          setDisplayWord(getRandomArabicWord(targetWord));
+        }
+        frameRef.current = requestAnimationFrame(animate);
+      } else if (elapsed < settleEnd) {
+        const progress = (elapsed - spinDuration) / settleDuration;
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        if (easeOut < 0.7) {
+          if (elapsed - lastSpinTimeRef.current >= SPIN_INTERVAL_MS * 0.7) {
+            lastSpinTimeRef.current = elapsed;
+            setDisplayWord(getRandomArabicWord(targetWord));
+          }
+        } else {
+          setDisplayWord(targetWord);
+        }
+        frameRef.current = requestAnimationFrame(animate);
+      } else {
+        setDisplayWord(targetWord);
+        setIsSettled(true);
+        onSettled();
+      }
+    };
+
+    setDisplayWord(getRandomArabicWord(targetWord));
+    frameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+      }
+    };
+  }, [isRevealing, targetWord, onSettled]);
+
+  return (
+    <motion.span
+      dir="rtl"
+      className="select-none inline-block"
+      style={{
+        fontFamily: '"Amiri", "Noto Naskh Arabic", "Scheherazade New", serif',
+        fontWeight: isSettled ? 700 : 600,
+        letterSpacing: "normal",
+        color: "#1a1a1a",
+        unicodeBidi: "isolate",
+      }}
+      animate={isSettled ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+      transition={
+        isSettled
+          ? { duration: 0.35, times: [0, 0.4, 1], ease: "easeOut" }
+          : { duration: 0.15 }
+      }
+    >
+      {displayWord}
+    </motion.span>
+  );
+};
+
+export const WordReveal = ({
+  word,
+  language,
+  isRevealing,
+  onRevealComplete,
+  onLetterSettle,
+}: WordRevealProps) => {
+  const isArabic = language === "AR";
   const [settledCount, setSettledCount] = useState(0);
   const [showUnderline, setShowUnderline] = useState(false);
-  const totalLetters = word.length;
+  const totalUnits = isArabic ? 1 : word.length;
 
   useEffect(() => {
     if (isRevealing) {
       setSettledCount(0);
       setShowUnderline(false);
     }
-  }, [isRevealing, word]);
+  }, [isRevealing, word, language]);
 
   useEffect(() => {
-    if (settledCount === totalLetters && totalLetters > 0 && isRevealing) {
+    if (settledCount === totalUnits && totalUnits > 0 && isRevealing) {
       setTimeout(() => setShowUnderline(true), 150);
       setTimeout(() => {
         onRevealComplete?.();
       }, 600);
     }
-  }, [settledCount, totalLetters, isRevealing, onRevealComplete]);
+  }, [settledCount, totalUnits, isRevealing, onRevealComplete]);
 
   const handleSettled = useCallback(() => {
-    setSettledCount(prev => prev + 1);
+    setSettledCount((prev) => prev + 1);
     onLetterSettle?.();
   }, [onLetterSettle]);
 
   return (
     <div className="relative">
       <motion.div
-        className="flex items-center justify-center text-4xl sm:text-6xl md:text-7xl lg:text-8xl tracking-[0.08em] sm:tracking-[0.12em]"
+        dir={isArabic ? "rtl" : "ltr"}
+        className={[
+          "flex items-center justify-center text-4xl sm:text-6xl md:text-7xl lg:text-8xl",
+          isArabic ? "tracking-normal" : "tracking-[0.08em] sm:tracking-[0.12em]",
+        ].join(" ")}
+        style={{ unicodeBidi: isArabic ? "isolate" : "normal" }}
         animate={{ scale: showUnderline ? 1.02 : 1 }}
         transition={{ duration: 0.4 }}
       >
-        {word.split('').map((char, index) => (
-          <LetterColumn
-            key={`${word}-${index}`}
-            targetChar={char.toUpperCase()}
-            delay={index * 120}
+        {isArabic ? (
+          <ArabicWordColumn
+            targetWord={word}
             isRevealing={isRevealing}
             onSettled={handleSettled}
           />
-        ))}
+        ) : (
+          word.split("").map((char, index) => (
+            <LetterColumn
+              key={`${word}-${index}`}
+              targetChar={char.toUpperCase()}
+              delay={index * 120}
+              isRevealing={isRevealing}
+              onSettled={handleSettled}
+            />
+          ))
+        )}
       </motion.div>
 
       <motion.div
         className="absolute -bottom-3 left-1/2 h-[1px] bg-gradient-to-r from-transparent via-[#1a1a1a]/40 to-transparent"
-        initial={{ width: 0, x: '-50%' }}
-        animate={{ 
-          width: showUnderline ? '70%' : 0,
-          x: '-50%'
+        initial={{ width: 0, x: "-50%" }}
+        animate={{
+          width: showUnderline ? "70%" : 0,
+          x: "-50%",
         }}
         transition={{ duration: 0.5 }}
       />
