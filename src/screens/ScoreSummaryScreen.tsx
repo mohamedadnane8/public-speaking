@@ -1,10 +1,14 @@
 import { motion } from "framer-motion";
 import type { SessionAudio } from "@/types/session";
+import type { User } from "@/hooks/useAuth";
 
 interface ScoreSummaryScreenProps {
   overallScore: number;
   audio: SessionAudio | null | undefined;
   isSaving?: boolean;
+  isSaved?: boolean;
+  isAuthenticated?: boolean;
+  user?: User | null;
   onNewSession: () => void;
   onReplay: () => void;
   onSaveAndGetAdvice: () => void;
@@ -14,6 +18,9 @@ export function ScoreSummaryScreen({
   overallScore,
   audio,
   isSaving = false,
+  isSaved = false,
+  isAuthenticated = false,
+  user = null,
   onNewSession,
   onReplay,
   onSaveAndGetAdvice,
@@ -73,21 +80,46 @@ export function ScoreSummaryScreen({
             Continue
           </motion.button>
 
-          {/* Secondary: Save & get advice */}
-          <motion.button
-            onClick={onSaveAndGetAdvice}
-            disabled={isSaving}
-            whileHover={isSaving ? {} : { backgroundColor: "rgba(26, 26, 26, 0.06)" }}
-            whileTap={isSaving ? {} : { scale: 0.98 }}
-            className={`text-[11px] tracking-[0.15em] uppercase transition-colors px-4 py-2 rounded ${
-              isSaving
-                ? "text-[#1a1a1a]/30 cursor-wait"
-                : "text-[#1a1a1a]/55 hover:text-[#1a1a1a]/80 hover:bg-[#1a1a1a]/5 cursor-pointer"
-            }`}
-            style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-          >
-            {isSaving ? "Saving..." : "Save & get advice"}
-          </motion.button>
+          {!isAuthenticated ? (
+            <motion.button
+              onClick={onSaveAndGetAdvice}
+              disabled={isSaving}
+              whileHover={isSaving ? {} : { backgroundColor: "rgba(26, 26, 26, 0.06)" }}
+              whileTap={isSaving ? {} : { scale: 0.98 }}
+              className={`text-[11px] tracking-[0.15em] uppercase transition-colors px-4 py-2 rounded ${
+                isSaving
+                  ? "text-[#1a1a1a]/30 cursor-wait"
+                  : "text-[#1a1a1a]/55 hover:text-[#1a1a1a]/80 hover:bg-[#1a1a1a]/5 cursor-pointer"
+              }`}
+              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+            >
+              {isSaving ? "Redirecting..." : "Save & get advice"}
+            </motion.button>
+          ) : (
+            <span
+              className="text-[11px] tracking-[0.15em] uppercase text-[#1a1a1a]/45"
+              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+            >
+              {isSaving ? "Saving session..." : isSaved ? "Session saved automatically" : "Auto-saving session..."}
+            </span>
+          )}
+          
+          {/* User info when authenticated */}
+          {isAuthenticated && user && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="flex items-center gap-2 mt-1"
+            >
+              <span
+                className="text-[10px] tracking-[0.1em] text-[#1a1a1a]/40"
+                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+              >
+                Signed in as {user.firstName} {user.lastName}
+              </span>
+            </motion.div>
+          )}
           
           {audio?.available && audio.fileUri && (
             <motion.button

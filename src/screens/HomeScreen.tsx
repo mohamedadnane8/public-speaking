@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import type { ModeConfig } from "@/lib/modes";
+import type { SessionDifficulty, SessionLanguage } from "@/types/session";
 
 import { isTranscriptionSupported } from "@/hooks/useTranscription";
 
@@ -7,22 +8,43 @@ interface HomeScreenProps {
   modeConfig: ModeConfig;
   manualThinkSeconds: number;
   manualSpeakSeconds: number;
+  selectedLanguage: SessionLanguage;
+  selectedDifficulty: SessionDifficulty;
   isRecordingSupported: boolean;
   hasRecordingPermission: boolean | null;
   isRequestingPermission: boolean;
   onModeCycle: () => void;
+  onLanguageChange: (language: SessionLanguage) => void;
+  onDifficultyChange: (difficulty: SessionDifficulty) => void;
   onManualTimeChange: (type: "think" | "speak", delta: number) => void;
   onRequestPermission: () => void;
-  onSpin: () => void;}
+  onSpin: () => void;
+}
+
+const LANGUAGE_OPTIONS: Array<{ value: SessionLanguage; label: string }> = [
+  { value: "EN", label: "EN" },
+  { value: "FR", label: "FR" },
+  { value: "AR", label: "AR" },
+];
+
+const DIFFICULTY_OPTIONS: Array<{ value: SessionDifficulty; label: string }> = [
+  { value: "EASY", label: "Easy" },
+  { value: "MEDIUM", label: "Medium" },
+  { value: "HARD", label: "Hard" },
+];
 
 export function HomeScreen({
   modeConfig,
   manualThinkSeconds,
   manualSpeakSeconds,
+  selectedLanguage,
+  selectedDifficulty,
   isRecordingSupported,
   hasRecordingPermission,
   isRequestingPermission,
   onModeCycle,
+  onLanguageChange,
+  onDifficultyChange,
   onManualTimeChange,
   onRequestPermission,
   onSpin,
@@ -144,6 +166,45 @@ export function HomeScreen({
             Trains: {modeConfig.descriptor}
           </span>
         </button>
+
+        {/* Language and difficulty */}
+        <div className="flex w-full flex-col items-center gap-3">
+          <div className="flex items-center gap-2">
+            {LANGUAGE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => onLanguageChange(option.value)}
+                className={`min-w-[3rem] border px-3 py-1 text-[10px] uppercase tracking-[0.18em] transition-colors ${
+                  selectedLanguage === option.value
+                    ? "border-[#1a1a1a]/65 bg-[#1a1a1a]/8 text-[#1a1a1a]"
+                    : "border-[#1a1a1a]/20 text-[#1a1a1a]/55 hover:border-[#1a1a1a]/40 hover:text-[#1a1a1a]/75"
+                }`}
+                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {DIFFICULTY_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => onDifficultyChange(option.value)}
+                className={`border px-3 py-1 text-[10px] uppercase tracking-[0.18em] transition-colors ${
+                  selectedDifficulty === option.value
+                    ? "border-[#1a1a1a]/65 bg-[#1a1a1a]/8 text-[#1a1a1a]"
+                    : "border-[#1a1a1a]/20 text-[#1a1a1a]/55 hover:border-[#1a1a1a]/40 hover:text-[#1a1a1a]/75"
+                }`}
+                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Decorative dashes */}
         <div

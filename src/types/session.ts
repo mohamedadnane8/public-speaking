@@ -6,6 +6,9 @@ export type Mode =
   | "SPEED"
   | "MANUAL";
 
+export type SessionLanguage = "EN" | "FR" | "AR";
+export type SessionDifficulty = "EASY" | "MEDIUM" | "HARD";
+
 export type RatingValue = 1 | 2 | 3 | 4 | 5;
 
 export type SessionStatus = "COMPLETED" | "CANCELLED" | "FAILED";
@@ -50,6 +53,8 @@ export interface Session {
   completedAt?: string;
 
   mode: Mode;
+  language: SessionLanguage;
+  difficulty: SessionDifficulty;
   word: string;
 
   thinkSeconds: number;
@@ -68,6 +73,7 @@ export interface Session {
 
 export type Screen = 
   | "HOME"
+  | "HISTORY"
   | "WORD_REVEAL"
   | "THINK"
   | "SPEAK"

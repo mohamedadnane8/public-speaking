@@ -5,10 +5,19 @@ import { useTimer } from "./hooks/useTimer";
 import { useSoundSystem } from "./hooks/useSoundSystem";
 import { useSession } from "./hooks/useSession";
 import { useTranscription, isTranscriptionSupported } from "./hooks/useTranscription";
+import { useAuth } from "./hooks/useAuth";
+import { apiClient } from "./lib/apiClient";
 import { getModeConfig, getNextMode } from "./lib/modes";
-import { getRandomWord } from "./lib/words";
+import { fetchRandomWordFromBackend } from "./lib/words";
 import { calculateOverallScore, hasAllRatings } from "./lib/scoring";
-import type { Screen, SessionRatings, RatingValue } from "./types/session";
+import type {
+  Screen,
+  Session,
+  SessionRatings,
+  RatingValue,
+  SessionLanguage,
+  SessionDifficulty,
+} from "./types/session";
 
 // Screens
 import { HomeScreen } from "./screens/HomeScreen";
@@ -18,6 +27,9 @@ import { SpeakScreen } from "./screens/SpeakScreen";
 import { PlaybackScreen } from "./screens/PlaybackScreen";
 import { ReflectScreen } from "./screens/ReflectScreen";
 import { ScoreSummaryScreen } from "./screens/ScoreSummaryScreen";
+import { HistoryScreen } from "./screens/HistoryScreen";
+import { AuthSuccessScreen } from "./screens/AuthSuccessScreen";
+import { AuthErrorScreen } from "./screens/AuthErrorScreen";
 
 import "./App.css";
 
@@ -30,14 +42,87 @@ const isRecordingSupported =
   typeof navigator.mediaDevices !== "undefined" &&
   typeof navigator.mediaDevices.getUserMedia === "function";
 
+const isLocalhost =
+  typeof window !== "undefined" &&
+  ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+
+const defaultMode = isLocalhost ? "MANUAL" : "EXPLANATION";
+const defaultThinkSeconds = isLocalhost ? 5 : 30;
+const defaultSpeakSeconds = isLocalhost ? 5 : 60;
+const DEFAULT_LANGUAGE: SessionLanguage = "EN";
+const DEFAULT_DIFFICULTY: SessionDifficulty = "MEDIUM";
+const LANGUAGE_STORAGE_KEY = "impromptu_language";
+const DIFFICULTY_STORAGE_KEY = "impromptu_difficulty";
+
+const DIFFICULTY_TIME_MULTIPLIER: Record<SessionDifficulty, number> = {
+  EASY: 1.25,
+  MEDIUM: 1,
+  HARD: 0.8,
+};
+
+function getStoredLanguage(): SessionLanguage {
+  if (typeof window === "undefined") return DEFAULT_LANGUAGE;
+  const value = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+  return value === "EN" || value === "FR" || value === "AR" ? value : DEFAULT_LANGUAGE;
+}
+
+function getStoredDifficulty(): SessionDifficulty {
+  if (typeof window === "undefined") return DEFAULT_DIFFICULTY;
+  const value = window.localStorage.getItem(DIFFICULTY_STORAGE_KEY);
+  return value === "EASY" || value === "MEDIUM" || value === "HARD"
+    ? value
+    : DEFAULT_DIFFICULTY;
+}
+
 function App() {
   // Screen state
   const [screen, setScreen] = useState<Screen>("HOME");
 
+  // Parse URL for auth callback parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const authError = urlParams.get("error");
+  const authSuccess = urlParams.get("auth") === "success";
+  
+  // Determine if we're on an auth callback page
+  const isAuthSuccessPage = authSuccess || window.location.pathname === "/auth/success";
+  const isAuthErrorPage = authError !== null || window.location.pathname === "/auth/error";
+  
+  // Handle clearing URL parameters after auth
+  const clearAuthParams = useCallback(() => {
+    // Remove auth query params from URL without reloading
+    const newUrl = window.location.pathname.replace(/\/auth\/(success|error)/, "") || "/";
+    window.history.replaceState({}, document.title, newUrl);
+  }, []);
+
+  // Check for pending session after OAuth redirect
+  useEffect(() => {
+    const pendingSession = sessionStorage.getItem("pending_session");
+    if (pendingSession && screen === "HOME" && !isAuthSuccessPage && !isAuthErrorPage) {
+      // If we have a pending session and just returned to home after auth,
+      // we might want to restore it or notify the user
+      const parsed = JSON.parse(pendingSession);
+      if (parsed?.status === "COMPLETED") {
+        toast.info("Your session is ready to be saved!");
+      }
+    }
+  }, [screen, isAuthSuccessPage, isAuthErrorPage]);
+
   // Mode configuration
-  const [modeConfig, setModeConfig] = useState(getModeConfig("EXPLANATION"));
-  const [manualThinkSeconds, setManualThinkSeconds] = useState(30);
-  const [manualSpeakSeconds, setManualSpeakSeconds] = useState(60);
+  const [modeConfig, setModeConfig] = useState(getModeConfig(defaultMode));
+  const [manualThinkSeconds, setManualThinkSeconds] = useState(defaultThinkSeconds);
+  const [manualSpeakSeconds, setManualSpeakSeconds] = useState(defaultSpeakSeconds);
+  const [selectedLanguage, setSelectedLanguage] = useState<SessionLanguage>(() => getStoredLanguage());
+  const [selectedDifficulty, setSelectedDifficulty] = useState<SessionDifficulty>(() => getStoredDifficulty());
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, selectedLanguage);
+  }, [selectedLanguage]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(DIFFICULTY_STORAGE_KEY, selectedDifficulty);
+  }, [selectedDifficulty]);
 
   // Word state
   const [currentWord, setCurrentWord] = useState("");
@@ -62,7 +147,11 @@ function App() {
 
   // Save & advice state
   const [isSaving, setIsSaving] = useState(false);
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+  const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
+  const [saveAttemptedSessionId, setSaveAttemptedSessionId] = useState<string | null>(null);
+  
+  // Auth hook
+  const { user, isAuthenticated, isLoading: isAuthLoading, login } = useAuth();
 
   // Hooks
   const {
@@ -78,6 +167,7 @@ function App() {
 
   const {
     session,
+    sessions,
     audio,
     isRecording,
     usedWords,
@@ -87,6 +177,8 @@ function App() {
     startRecording,
     stopRecording,
     resetRecording,
+    restoreSession,
+    deleteHistorySession,
     addUsedWord,
     resetUsedWords,
   } = useSession();
@@ -103,8 +195,13 @@ function App() {
   } = useTranscription();
 
   // Effective timings
-  const effectiveThinkSeconds = modeConfig.name === "MANUAL" ? manualThinkSeconds : modeConfig.thinkSeconds;
-  const effectiveSpeakSeconds = modeConfig.name === "MANUAL" ? manualSpeakSeconds : modeConfig.speakSeconds;
+  const effectiveThinkSeconds = modeConfig.name === "MANUAL"
+    ? manualThinkSeconds
+    : Math.max(5, Math.round((modeConfig.thinkSeconds * DIFFICULTY_TIME_MULTIPLIER[selectedDifficulty]) / 5) * 5);
+
+  const effectiveSpeakSeconds = modeConfig.name === "MANUAL"
+    ? manualSpeakSeconds
+    : Math.max(5, Math.round((modeConfig.speakSeconds * DIFFICULTY_TIME_MULTIPLIER[selectedDifficulty]) / 5) * 5);
 
   // Timers
   const thinkTimer = useTimer(
@@ -231,11 +328,23 @@ function App() {
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
+    setSavedSessionId(null);
+    setSaveAttemptedSessionId(null);
   };
 
   // Home screen handlers
   const handleModeCycle = () => {
     setModeConfig(getModeConfig(getNextMode(modeConfig.name)));
+  };
+
+  const handleLanguageChange = (language: SessionLanguage) => {
+    setSelectedLanguage(language);
+    resetUsedWords();
+  };
+
+  const handleDifficultyChange = (difficulty: SessionDifficulty) => {
+    setSelectedDifficulty(difficulty);
+    resetUsedWords();
   };
 
   const handleManualTimeChange = (type: "think" | "speak", delta: number) => {
@@ -259,9 +368,22 @@ function App() {
     setIsRequestingPermission(false);
   };
 
-  const handleSpin = () => {
+  const handleSpin = async () => {
     init();
-    const newWord = getRandomWord(usedWords);
+    let newWord = "";
+
+    try {
+      newWord = await fetchRandomWordFromBackend({
+        language: selectedLanguage,
+        difficulty: selectedDifficulty,
+        excludedWords: usedWords,
+      });
+    } catch (error) {
+      console.error("Failed to fetch random word from backend:", error);
+      toast.error("Unable to fetch a word right now. Please try again.");
+      return;
+    }
+
     setCurrentWord(newWord);
     addUsedWord(newWord);
     setSpinKey((k) => k + 1);
@@ -286,7 +408,14 @@ function App() {
   };
 
   const handleStartSession = () => {
-    createSession(modeConfig.name, currentWord, effectiveThinkSeconds, effectiveSpeakSeconds);
+    createSession(
+      modeConfig.name,
+      selectedLanguage,
+      selectedDifficulty,
+      currentWord,
+      effectiveThinkSeconds,
+      effectiveSpeakSeconds
+    );
     setScreen("THINK");
     lastTickPlayedRef.current = -1;
     thinkTimer.reset(effectiveThinkSeconds);
@@ -345,6 +474,8 @@ function App() {
     if (!hasAllRatings(ratings)) return;
     const overallScore = calculateOverallScore(ratings);
     completeSession(ratings, overallScore, notes, transcript);
+    setSavedSessionId(null);
+    setSaveAttemptedSessionId(null);
     setScreen("SCORE_SUMMARY");
   };
 
@@ -356,102 +487,104 @@ function App() {
     setScreen("HOME");
   };
 
-  // Google OAuth and save handler
-  const handleSaveAndGetAdvice = useCallback(async () => {
-    if (!googleClientId) {
-      toast.error("Google OAuth not configured");
-      return;
+  const handleOpenHistory = useCallback(() => {
+    setScreen("HISTORY");
+  }, []);
+
+  const saveSessionAndGetAdvice = useCallback(async (
+    sessionToSave: Session,
+    options: { loginIfUnauthenticated: boolean; showToast: boolean }
+  ) => {
+    const { loginIfUnauthenticated, showToast } = options;
+
+    if (!isAuthenticated) {
+      if (loginIfUnauthenticated) {
+        sessionStorage.setItem("pending_session", JSON.stringify(sessionToSave));
+        login(window.location.pathname);
+      }
+      return false;
     }
 
+    setSaveAttemptedSessionId(sessionToSave.id);
     setIsSaving(true);
 
     try {
-      // Load Google Identity Services script if not already loaded
-      if (!(window as unknown as { google?: unknown }).google) {
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = "https://accounts.google.com/gsi/client";
-          script.async = true;
-          script.defer = true;
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error("Failed to load Google script"));
-          document.body.appendChild(script);
+      let saveRes = await apiClient("/api/sessions", {
+        method: "POST",
+        body: JSON.stringify(sessionToSave),
+      });
+
+      // Compatibility fallback for deployments that only expose /api/sessions/record
+      if (saveRes.status === 404 || saveRes.status === 405) {
+        saveRes = await apiClient("/api/sessions/record", {
+          method: "POST",
+          body: JSON.stringify(sessionToSave),
         });
       }
 
-      const google = (window as unknown as { google: { accounts: { oauth2: { initTokenClient: (config: {
-        client_id: string;
-        scope: string;
-        callback: (response: { access_token?: string; error?: string }) => void;
-      }) => { requestAccessToken: () => void } } } } }).google;
+      if (!saveRes.ok) {
+        if (saveRes.status === 401 && loginIfUnauthenticated) {
+          sessionStorage.setItem("pending_session", JSON.stringify(sessionToSave));
+          login(window.location.pathname);
+          return false;
+        }
+        throw new Error(`Failed to save session (${saveRes.status})`);
+      }
 
-      // Initialize Google OAuth client
-      const client = google.accounts.oauth2.initTokenClient({
-        client_id: googleClientId,
-        scope: "openid email profile",
-        callback: async (response) => {
-          if (response.error) {
-            toast.error("Google sign-in failed");
-            setIsSaving(false);
-            return;
-          }
+      const saveData = await saveRes.json();
+      setSavedSessionId(sessionToSave.id);
+      sessionStorage.removeItem("pending_session");
 
-          try {
-            // Step 1: Authenticate with Google (idToken only)
-            const authRes = await fetch("http://localhost:5000/api/auth/google", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                idToken: response.access_token,
-              }),
-            });
+      if (showToast) {
+        toast.success("Session saved! Check your email for advice.");
+        if (saveData.advice) {
+          toast.info(saveData.advice, { duration: 10000 });
+        }
+      }
 
-            if (!authRes.ok) {
-              throw new Error("Authentication failed");
-            }
-
-            const authData = await authRes.json();
-            
-            // Step 2: Save session with auth token
-            const saveRes = await fetch("http://localhost:5000/api/sessions/record", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${authData.token}`,
-              },
-              body: JSON.stringify(session),
-            });
-
-            if (!saveRes.ok) {
-              throw new Error("Failed to save session");
-            }
-
-            const saveData = await saveRes.json();
-            toast.success("Session saved! Check your email for advice.");
-            
-            // Optionally show advice if returned immediately
-            if (saveData.advice) {
-              toast.info(saveData.advice, { duration: 10000 });
-            }
-          } catch (error) {
-            toast.error("Failed to save session. Please try again.");
-            console.error("Save error:", error);
-          } finally {
-            setIsSaving(false);
-          }
-        },
-      });
-
-      // Trigger Google OAuth popup
-      client.requestAccessToken();
+      return true;
     } catch (error) {
-      toast.error("Something went wrong");
-      console.error("OAuth error:", error);
+      if (showToast) {
+        toast.error("Failed to save session. Please try again.");
+      }
+      console.error("Save error:", error);
+      return false;
+    } finally {
       setIsSaving(false);
     }
-  }, [googleClientId, session]);
+  }, [isAuthenticated, login]);
+
+  // Guest CTA: trigger login + save-after-auth flow
+  const handleSaveAndGetAdvice = useCallback(async () => {
+    if (!session) return;
+    await saveSessionAndGetAdvice(session, { loginIfUnauthenticated: true, showToast: true });
+  }, [session, saveSessionAndGetAdvice]);
+
+  // Authenticated flow: auto-save when reaching score summary
+  useEffect(() => {
+    if (
+      screen !== "SCORE_SUMMARY" ||
+      !isAuthenticated ||
+      !session ||
+      session.status !== "COMPLETED"
+    ) {
+      return;
+    }
+
+    if (savedSessionId === session.id || saveAttemptedSessionId === session.id || isSaving) {
+      return;
+    }
+
+    void saveSessionAndGetAdvice(session, { loginIfUnauthenticated: false, showToast: false });
+  }, [
+    screen,
+    isAuthenticated,
+    session,
+    savedSessionId,
+    saveAttemptedSessionId,
+    isSaving,
+    saveSessionAndGetAdvice,
+  ]);
 
   const handleReplay = () => {
     if (!audio?.fileUri) return;
@@ -468,10 +601,37 @@ function App() {
     setIsPlaying(true);
   };
 
+  const handleReplayHistoryAudio = useCallback((historySession: Session) => {
+    const fileUri = historySession.audio?.fileUri;
+    if (!fileUri) {
+      toast.error("No audio available for this session.");
+      return;
+    }
+
+    const audioInstance = new Audio(fileUri);
+    audioInstance.play().catch(() => {
+      toast.error("Unable to replay this audio file.");
+    });
+  }, []);
+
+  const handleDeleteHistorySession = useCallback((id: string) => {
+    deleteHistorySession(id);
+    if (savedSessionId === id) {
+      setSavedSessionId(null);
+    }
+    if (saveAttemptedSessionId === id) {
+      setSaveAttemptedSessionId(null);
+    }
+    toast.success("Session removed from history.");
+  }, [deleteHistorySession, savedSessionId, saveAttemptedSessionId]);
+
   // Back navigation
   const handleBack = () => {
     switch (screen) {
       case "WORD_REVEAL":
+        setScreen("HOME");
+        break;
+      case "HISTORY":
         setScreen("HOME");
         break;
       case "THINK":
@@ -520,8 +680,40 @@ function App() {
         </button>
       )}
 
-      {/* Branding */}
-      <div className="absolute top-8 right-8 z-50">
+      {/* User auth section */}
+      <div className="absolute top-8 right-8 z-50 flex items-center gap-4">
+        {!isAuthSuccessPage && !isAuthErrorPage && (screen === "HOME" || screen === "SCORE_SUMMARY") && (
+          <button
+            type="button"
+            onClick={handleOpenHistory}
+            className="text-xs tracking-[0.15em] text-[#1a1a1a]/60 hover:text-[#1a1a1a] transition-colors uppercase"
+            style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+          >
+            History
+          </button>
+        )}
+        {!isAuthLoading && (
+          <>
+            {isAuthenticated && user ? (
+              <div className="flex items-center">
+                <span
+                  className="text-xs text-[#1a1a1a]/70 hidden sm:block"
+                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                >
+                  {user.firstName} {user.lastName}
+                </span>
+              </div>
+            ) : (
+              <button
+                onClick={() => login()}
+                className="text-xs tracking-[0.15em] text-[#1a1a1a]/60 hover:text-[#1a1a1a] transition-colors uppercase"
+                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+              >
+                Login
+              </button>
+            )}
+          </>
+        )}
         <span
           className="text-[10px] tracking-[0.4em] text-[#1a1a1a]/30 uppercase"
           style={{ fontFamily: '"Inter", sans-serif', fontWeight: 300 }}
@@ -531,15 +723,29 @@ function App() {
       </div>
 
       <AnimatePresence mode="wait">
+        {screen === "HISTORY" && (
+          <HistoryScreen
+            sessions={sessions}
+            isAuthenticated={isAuthenticated}
+            onBack={() => setScreen("HOME")}
+            onDeleteSession={handleDeleteHistorySession}
+            onReplayAudio={handleReplayHistoryAudio}
+          />
+        )}
+
         {screen === "HOME" && (
           <HomeScreen
             modeConfig={modeConfig}
             manualThinkSeconds={manualThinkSeconds}
             manualSpeakSeconds={manualSpeakSeconds}
+            selectedLanguage={selectedLanguage}
+            selectedDifficulty={selectedDifficulty}
             isRecordingSupported={isRecordingSupported}
             hasRecordingPermission={hasRecordingPermission}
             isRequestingPermission={isRequestingPermission}
             onModeCycle={handleModeCycle}
+            onLanguageChange={handleLanguageChange}
+            onDifficultyChange={handleDifficultyChange}
             onManualTimeChange={handleManualTimeChange}
             onRequestPermission={handleRequestPermission}
             onSpin={handleSpin}
@@ -619,9 +825,59 @@ function App() {
             overallScore={session.overallScore}
             audio={audio}
             isSaving={isSaving}
+            isSaved={savedSessionId === session.id}
+            isAuthenticated={isAuthenticated}
+            user={user}
             onNewSession={handleNewSession}
             onReplay={handleReplay}
             onSaveAndGetAdvice={handleSaveAndGetAdvice}
+          />
+        )}
+
+        {/* Auth callback screens */}
+        {isAuthSuccessPage && (
+          <AuthSuccessScreen
+            onContinue={(authedUser) => {
+              clearAuthParams();
+              // Check if there's a pending session to save
+              const pendingSession = sessionStorage.getItem("pending_session");
+              if (authedUser && pendingSession) {
+                let restored = false;
+                try {
+                  const parsedSession = JSON.parse(pendingSession) as Session;
+                  if (parsedSession?.id && parsedSession?.overallScore !== undefined) {
+                    restoreSession({
+                      ...parsedSession,
+                      language: parsedSession.language ?? DEFAULT_LANGUAGE,
+                      difficulty: parsedSession.difficulty ?? DEFAULT_DIFFICULTY,
+                    });
+                    setSavedSessionId(null);
+                    setSaveAttemptedSessionId(null);
+                    restored = true;
+                  }
+                } catch (error) {
+                  console.error("Failed to restore pending session:", error);
+                  sessionStorage.removeItem("pending_session");
+                }
+                setScreen(restored ? "SCORE_SUMMARY" : "HOME");
+              } else {
+                setScreen("HOME");
+              }
+            }}
+          />
+        )}
+
+        {isAuthErrorPage && (
+          <AuthErrorScreen
+            error={authError}
+            onGoHome={() => {
+              clearAuthParams();
+              setScreen("HOME");
+            }}
+            onRetry={() => {
+              clearAuthParams();
+              login(window.location.pathname);
+            }}
           />
         )}
       </AnimatePresence>
