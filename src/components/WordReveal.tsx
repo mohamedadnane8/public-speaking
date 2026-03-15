@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import type { SessionLanguage } from "@/types/session";
 
@@ -14,200 +14,50 @@ const LATIN_CHAR_POOL = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const ARABIC_CHAR_POOL = "ابتثجحخدذرزسشصضطظعغفقكلمنهوي";
 const SPIN_INTERVAL_MS = 80;
 
-const getRandomLatinChar = () =>
-  LATIN_CHAR_POOL[Math.floor(Math.random() * LATIN_CHAR_POOL.length)];
+function randomFromPool(pool: string): string {
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
-const getRandomArabicWord = (template: string) =>
-  Array.from(template)
+function scrambleWord(template: string, language: SessionLanguage): string {
+  const pool = language === "AR" ? ARABIC_CHAR_POOL : LATIN_CHAR_POOL;
+
+  return Array.from(template)
     .map((char) => {
       if (/\s/.test(char)) return char;
-      return ARABIC_CHAR_POOL[Math.floor(Math.random() * ARABIC_CHAR_POOL.length)];
+      return randomFromPool(pool);
     })
     .join("");
+}
 
-const LetterColumn = ({
-  targetChar,
-  delay,
-  isRevealing,
-  onSettled,
-}: {
-  targetChar: string;
-  delay: number;
-  isRevealing: boolean;
-  onSettled: () => void;
-}) => {
-  const [displayChar, setDisplayChar] = useState("—");
-  const [isSettled, setIsSettled] = useState(false);
-  const frameRef = useRef<number | null>(null);
-  const lastSpinTimeRef = useRef(0);
-  const firstLetterShownRef = useRef(false);
+function getLetterSpacing(word: string, language: SessionLanguage): string {
+  if (language === "AR") return "normal";
 
-  useEffect(() => {
-    if (!isRevealing) return;
+  const charCount = Array.from(word).filter((char) => !/\s/.test(char)).length;
+  const wordCount = word.trim().split(/\s+/).filter(Boolean).length || 1;
+  const phraseWeight = charCount + Math.max(0, wordCount - 1) * 4;
 
-    setIsSettled(false);
-    lastSpinTimeRef.current = 0;
-    firstLetterShownRef.current = false;
-    const startTime = performance.now();
+  if (phraseWeight <= 10) return "0.11em";
+  if (phraseWeight <= 18) return "0.08em";
+  if (phraseWeight <= 28) return "0.05em";
+  return "0.02em";
+}
 
-    const animate = () => {
-      const elapsed = performance.now() - startTime;
-      const spinDuration = 1200;
-      const settleStart = spinDuration + delay;
-      const settleDuration = 350;
-      const settleEnd = settleStart + settleDuration;
+function getFontBounds() {
+  const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1280;
+  const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 900;
 
-      if (elapsed < spinDuration) {
-        if (!firstLetterShownRef.current) {
-          firstLetterShownRef.current = true;
-          setDisplayChar(getRandomLatinChar());
-        } else if (elapsed - lastSpinTimeRef.current >= SPIN_INTERVAL_MS) {
-          lastSpinTimeRef.current = elapsed;
-          setDisplayChar(getRandomLatinChar());
-        }
-        frameRef.current = requestAnimationFrame(animate);
-      } else if (elapsed < settleEnd) {
-        const progress = (elapsed - settleStart) / settleDuration;
-        const easeOut = 1 - Math.pow(1 - progress, 3);
-        if (easeOut < 0.75) {
-          if (elapsed - lastSpinTimeRef.current >= SPIN_INTERVAL_MS * 0.6) {
-            lastSpinTimeRef.current = elapsed;
-            setDisplayChar(getRandomLatinChar());
-          }
-        } else {
-          setDisplayChar(targetChar);
-        }
-        frameRef.current = requestAnimationFrame(animate);
-      } else {
-        setDisplayChar(targetChar);
-        setIsSettled(true);
-        onSettled();
-      }
-    };
+  // Big by default; shrink only when actual rendered text overflows.
+  const maxPx = Math.min(172, Math.max(64, Math.floor(viewportWidth * 0.18), Math.floor(viewportHeight * 0.2)));
+  const minPx = Math.min(54, Math.max(32, Math.floor(viewportWidth * 0.085)));
 
-    setDisplayChar(getRandomLatinChar());
-    frameRef.current = requestAnimationFrame(animate);
+  return { maxPx, minPx };
+}
 
-    return () => {
-      if (frameRef.current !== null) {
-        cancelAnimationFrame(frameRef.current);
-      }
-    };
-  }, [isRevealing, targetChar, delay, onSettled]);
-
-  return (
-    <div className="relative h-[1.1em] min-h-[2rem] w-[0.7em] min-w-[0.5rem] flex items-center justify-center">
-      <motion.span
-        className="absolute inset-0 flex items-center justify-center select-none"
-        style={{
-          fontFamily: '"Cormorant Garamond", Georgia, serif',
-          fontWeight: isSettled ? 400 : 300,
-          letterSpacing: "0.08em",
-          color: "#1a1a1a",
-          opacity: 1,
-        }}
-        animate={isSettled ? { scale: [1, 1.08, 1] } : { scale: 1 }}
-        transition={
-          isSettled
-            ? { duration: 0.35, times: [0, 0.4, 1], ease: "easeOut" }
-            : { duration: 0.15 }
-        }
-      >
-        {displayChar}
-      </motion.span>
-    </div>
-  );
-};
-
-const ArabicWordColumn = ({
-  targetWord,
-  isRevealing,
-  onSettled,
-}: {
-  targetWord: string;
-  isRevealing: boolean;
-  onSettled: () => void;
-}) => {
-  const [displayWord, setDisplayWord] = useState("—");
-  const [isSettled, setIsSettled] = useState(false);
-  const frameRef = useRef<number | null>(null);
-  const lastSpinTimeRef = useRef(0);
-  const firstWordShownRef = useRef(false);
-
-  useEffect(() => {
-    if (!isRevealing) return;
-
-    setIsSettled(false);
-    lastSpinTimeRef.current = 0;
-    firstWordShownRef.current = false;
-    const startTime = performance.now();
-
-    const animate = () => {
-      const elapsed = performance.now() - startTime;
-      const spinDuration = 1300;
-      const settleDuration = 450;
-      const settleEnd = spinDuration + settleDuration;
-
-      if (elapsed < spinDuration) {
-        if (!firstWordShownRef.current) {
-          firstWordShownRef.current = true;
-          setDisplayWord(getRandomArabicWord(targetWord));
-        } else if (elapsed - lastSpinTimeRef.current >= SPIN_INTERVAL_MS) {
-          lastSpinTimeRef.current = elapsed;
-          setDisplayWord(getRandomArabicWord(targetWord));
-        }
-        frameRef.current = requestAnimationFrame(animate);
-      } else if (elapsed < settleEnd) {
-        const progress = (elapsed - spinDuration) / settleDuration;
-        const easeOut = 1 - Math.pow(1 - progress, 3);
-        if (easeOut < 0.7) {
-          if (elapsed - lastSpinTimeRef.current >= SPIN_INTERVAL_MS * 0.7) {
-            lastSpinTimeRef.current = elapsed;
-            setDisplayWord(getRandomArabicWord(targetWord));
-          }
-        } else {
-          setDisplayWord(targetWord);
-        }
-        frameRef.current = requestAnimationFrame(animate);
-      } else {
-        setDisplayWord(targetWord);
-        setIsSettled(true);
-        onSettled();
-      }
-    };
-
-    setDisplayWord(getRandomArabicWord(targetWord));
-    frameRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (frameRef.current !== null) {
-        cancelAnimationFrame(frameRef.current);
-      }
-    };
-  }, [isRevealing, targetWord, onSettled]);
-
-  return (
-    <motion.span
-      dir="rtl"
-      className="select-none inline-block"
-      style={{
-        fontFamily: '"Amiri", "Noto Naskh Arabic", "Scheherazade New", serif',
-        fontWeight: isSettled ? 700 : 600,
-        letterSpacing: "normal",
-        color: "#1a1a1a",
-        unicodeBidi: "isolate",
-      }}
-      animate={isSettled ? { scale: [1, 1.05, 1] } : { scale: 1 }}
-      transition={
-        isSettled
-          ? { duration: 0.35, times: [0, 0.4, 1], ease: "easeOut" }
-          : { duration: 0.15 }
-      }
-    >
-      {displayWord}
-    </motion.span>
-  );
-};
+function getSettleTickCount(word: string): number {
+  const count = Array.from(word).filter((char) => !/\s/.test(char)).length;
+  if (count <= 0) return 1;
+  return Math.min(8, Math.max(1, Math.ceil(count / 4)));
+}
 
 export const WordReveal = ({
   word,
@@ -216,61 +66,238 @@ export const WordReveal = ({
   onRevealComplete,
   onLetterSettle,
 }: WordRevealProps) => {
-  const isArabic = language === "AR";
-  const [settledCount, setSettledCount] = useState(0);
+  const [displayWord, setDisplayWord] = useState(word);
+  const [isSettled, setIsSettled] = useState(false);
   const [showUnderline, setShowUnderline] = useState(false);
-  const totalUnits = isArabic ? 1 : word.length;
+  const [fontSizePx, setFontSizePx] = useState(96);
+  const [targetLineCount, setTargetLineCount] = useState<1 | 2>(1);
+  const [fitTick, setFitTick] = useState(0);
+
+  const frameRef = useRef<number | null>(null);
+  const timeoutRefs = useRef<number[]>([]);
+  const fitContainerRef = useRef<HTMLDivElement | null>(null);
+  const fitMeasureRef = useRef<HTMLSpanElement | null>(null);
+  const lastSpinTimeRef = useRef(0);
+  const hasShownSpinRef = useRef(false);
+  const lineHeight = language === "AR" ? 1.02 : 0.95;
+  const letterSpacing = useMemo(
+    () => getLetterSpacing(word, language),
+    [word, language]
+  );
+
+  const clearTimers = useCallback(() => {
+    for (const id of timeoutRefs.current) {
+      window.clearTimeout(id);
+    }
+    timeoutRefs.current = [];
+  }, []);
 
   useEffect(() => {
-    if (isRevealing) {
-      setSettledCount(0);
+    return () => {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+      }
+      clearTimers();
+    };
+  }, [clearTimers]);
+
+  useEffect(() => {
+    const container = fitContainerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(() => {
+      setFitTick((prev) => prev + 1);
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  useLayoutEffect(() => {
+    const container = fitContainerRef.current;
+    const measurer = fitMeasureRef.current;
+    if (!container || !measurer) return;
+
+    const containerWidth = Math.max(1, container.clientWidth);
+    const { maxPx, minPx } = getFontBounds();
+    let nextSize = maxPx;
+
+    measurer.textContent = word;
+    measurer.style.width = `${containerWidth}px`;
+    measurer.style.letterSpacing = letterSpacing;
+    measurer.style.lineHeight = String(lineHeight);
+
+    const exceedsTwoLines = () => {
+      const maxHeight = nextSize * lineHeight * 2 + 1;
+      return measurer.scrollHeight > maxHeight;
+    };
+
+    while (nextSize > minPx) {
+      measurer.style.fontSize = `${nextSize}px`;
+      if (!exceedsTwoLines()) {
+        break;
+      }
+      nextSize -= 1;
+    }
+
+    measurer.style.fontSize = `${nextSize}px`;
+    const oneLineMaxHeight = nextSize * lineHeight * 1.18;
+    const lines: 1 | 2 = measurer.scrollHeight > oneLineMaxHeight ? 2 : 1;
+
+    setFontSizePx(nextSize);
+    setTargetLineCount(lines);
+  }, [word, language, lineHeight, letterSpacing, fitTick]);
+
+  useEffect(() => {
+    if (!isRevealing) {
+      setDisplayWord(word);
+      setIsSettled(false);
       setShowUnderline(false);
+      return;
     }
-  }, [isRevealing, word, language]);
 
-  useEffect(() => {
-    if (settledCount === totalUnits && totalUnits > 0 && isRevealing) {
-      setTimeout(() => setShowUnderline(true), 150);
-      setTimeout(() => {
-        onRevealComplete?.();
-      }, 600);
-    }
-  }, [settledCount, totalUnits, isRevealing, onRevealComplete]);
+    setIsSettled(false);
+    setShowUnderline(false);
+    lastSpinTimeRef.current = 0;
+    hasShownSpinRef.current = false;
+    clearTimers();
 
-  const handleSettled = useCallback(() => {
-    setSettledCount((prev) => prev + 1);
-    onLetterSettle?.();
-  }, [onLetterSettle]);
+    const start = performance.now();
+    const spinDuration = 1200;
+    const settleDuration = 400;
+    const settleEnd = spinDuration + settleDuration;
+
+    const emitSettleTicks = () => {
+      const ticks = getSettleTickCount(word);
+      for (let i = 0; i < ticks; i += 1) {
+        const timerId = window.setTimeout(() => {
+          onLetterSettle?.();
+        }, i * 60);
+        timeoutRefs.current.push(timerId);
+      }
+    };
+
+    const finalize = () => {
+      setDisplayWord(word);
+      setIsSettled(true);
+      emitSettleTicks();
+
+      timeoutRefs.current.push(
+        window.setTimeout(() => setShowUnderline(true), 120)
+      );
+
+      timeoutRefs.current.push(
+        window.setTimeout(() => {
+          onRevealComplete?.();
+        }, 560)
+      );
+    };
+
+    const animate = () => {
+      const elapsed = performance.now() - start;
+
+      if (elapsed < spinDuration) {
+        if (!hasShownSpinRef.current) {
+          hasShownSpinRef.current = true;
+          setDisplayWord(scrambleWord(word, language));
+        } else if (elapsed - lastSpinTimeRef.current >= SPIN_INTERVAL_MS) {
+          lastSpinTimeRef.current = elapsed;
+          setDisplayWord(scrambleWord(word, language));
+        }
+        frameRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      if (elapsed < settleEnd) {
+        const progress = (elapsed - spinDuration) / settleDuration;
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        if (easeOut < 0.72) {
+          if (elapsed - lastSpinTimeRef.current >= SPIN_INTERVAL_MS * 0.65) {
+            lastSpinTimeRef.current = elapsed;
+            setDisplayWord(scrambleWord(word, language));
+          }
+          frameRef.current = requestAnimationFrame(animate);
+          return;
+        }
+      }
+
+      finalize();
+    };
+
+    setDisplayWord(scrambleWord(word, language));
+    frameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+      }
+      clearTimers();
+    };
+  }, [word, language, isRevealing, onLetterSettle, onRevealComplete, clearTimers]);
+
+  const isArabic = language === "AR";
+  const useTwoLines = targetLineCount === 2;
 
   return (
-    <div className="relative">
+    <div className="relative w-full">
       <motion.div
-        dir={isArabic ? "rtl" : "ltr"}
-        className={[
-          "flex items-center justify-center text-4xl sm:text-6xl md:text-7xl lg:text-8xl",
-          isArabic ? "tracking-normal" : "tracking-[0.08em] sm:tracking-[0.12em]",
-        ].join(" ")}
-        style={{ unicodeBidi: isArabic ? "isolate" : "normal" }}
+        className="mx-auto flex w-full max-w-[min(94vw,42rem)] min-h-[7.5rem] items-center justify-center px-2 sm:min-h-[9.5rem] md:min-h-[11rem]"
         animate={{ scale: showUnderline ? 1.02 : 1 }}
         transition={{ duration: 0.4 }}
       >
-        {isArabic ? (
-          <ArabicWordColumn
-            targetWord={word}
-            isRevealing={isRevealing}
-            onSettled={handleSettled}
-          />
-        ) : (
-          word.split("").map((char, index) => (
-            <LetterColumn
-              key={`${word}-${index}`}
-              targetChar={char.toUpperCase()}
-              delay={index * 120}
-              isRevealing={isRevealing}
-              onSettled={handleSettled}
-            />
-          ))
-        )}
+        <div ref={fitContainerRef} className="relative w-full">
+          <motion.span
+            dir={isArabic ? "rtl" : "ltr"}
+            className="block w-full select-none overflow-hidden text-center"
+            style={{
+              fontSize: `${fontSizePx}px`,
+              fontFamily: isArabic
+                ? '"Amiri", "Noto Naskh Arabic", "Scheherazade New", serif'
+                : '"Cormorant Garamond", Georgia, serif',
+              fontWeight: isArabic ? (isSettled ? 700 : 600) : isSettled ? 500 : 400,
+              letterSpacing,
+              lineHeight,
+              color: "#1a1a1a",
+              unicodeBidi: isArabic ? "isolate" : "normal",
+              whiteSpace: useTwoLines ? "normal" : "nowrap",
+              overflowWrap: useTwoLines ? "anywhere" : "normal",
+              wordBreak: useTwoLines ? "break-word" : "normal",
+              hyphens: useTwoLines ? "auto" : "manual",
+              textWrap: useTwoLines ? "balance" : "nowrap",
+              display: useTwoLines ? "-webkit-box" : "block",
+              WebkitLineClamp: useTwoLines ? 2 : undefined,
+              WebkitBoxOrient: useTwoLines ? "vertical" : undefined,
+            }}
+            animate={isSettled ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+            transition={
+              isSettled
+                ? { duration: 0.35, times: [0, 0.4, 1], ease: "easeOut" }
+                : { duration: 0.15 }
+            }
+          >
+            {displayWord}
+          </motion.span>
+
+          <span
+            ref={fitMeasureRef}
+            aria-hidden="true"
+            className="pointer-events-none invisible absolute left-0 top-0 z-[-1] block w-full"
+            style={{
+              fontFamily: isArabic
+                ? '"Amiri", "Noto Naskh Arabic", "Scheherazade New", serif'
+                : '"Cormorant Garamond", Georgia, serif',
+              fontWeight: isArabic ? 700 : 500,
+              letterSpacing,
+              lineHeight,
+              whiteSpace: "normal",
+              overflowWrap: "anywhere",
+              wordBreak: "break-word",
+              hyphens: "auto",
+            }}
+          >
+            {word}
+          </span>
+        </div>
       </motion.div>
 
       <motion.div
