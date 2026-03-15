@@ -69,6 +69,87 @@ type AudioUploadResponse = {
   contentType: string;
 };
 
+function pickDeterministicIndex(seed: string, salt: string, size: number): number {
+  if (size <= 1) return 0;
+  let hash = 2166136261;
+  const input = `${seed}:${salt}`;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash >>> 0) % size;
+}
+
+function buildFallbackAdvice(session: Session): string | null {
+  const ratings = session.ratings;
+  if (!ratings) return null;
+
+  const entries = [
+    ["opening", ratings.opening],
+    ["structure", ratings.structure],
+    ["ending", ratings.ending],
+    ["confidence", ratings.confidence],
+    ["clarity", ratings.clarity],
+    ["authenticity", ratings.authenticity],
+    ["language expression", ratings.languageExpression],
+  ] as const;
+
+  const scored = entries.filter((entry) => typeof entry[1] === "number") as Array<[string, number]>;
+  if (scored.length === 0) return null;
+
+  const weakestScore = Math.min(...scored.map((entry) => entry[1]));
+  const average = scored.reduce((sum, entry) => sum + entry[1], 0) / scored.length;
+  const strongestWeakestTie = Math.max(...scored.map((entry) => entry[1])) === weakestScore;
+  const sessionSeed = session.id || "session";
+
+  const weakestCandidates = scored
+    .filter((entry) => entry[1] === weakestScore)
+    .sort((a, b) => a[0].localeCompare(b[0]));
+
+  const tieCandidates = scored
+    .sort((a, b) => a[0].localeCompare(b[0]));
+
+  const target = strongestWeakestTie
+    ? tieCandidates[pickDeterministicIndex(sessionSeed, "tie", tieCandidates.length)]
+    : weakestCandidates[pickDeterministicIndex(sessionSeed, "weakest", weakestCandidates.length)];
+  if (!target) return null;
+
+  const tonePrefix = average >= 4.2
+    ? `Next polish: ${target[0]}.`
+    : average >= 3.2
+    ? `Focus next on ${target[0]}.`
+    : `Priority: ${target[0]}.`;
+
+  const scoreForMessage = strongestWeakestTie
+    ? (average >= 4.2 ? 4 : average >= 3.2 ? 3 : 2)
+    : weakestScore;
+
+  const actionText =
+    scoreForMessage <= 2
+      ? "Make this your priority in the next round."
+      : scoreForMessage === 3
+      ? "Improve it with clearer structure and cleaner transitions."
+      : "Polish it for a sharper and more intentional delivery.";
+
+  return `${tonePrefix} ${actionText}`;
+}
+
+function extractAdviceFromSaveResponse(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+
+  const direct = (payload as { advice?: unknown }).advice;
+  if (typeof direct === "string" && direct.trim().length > 0) {
+    return direct.trim();
+  }
+
+  const nested = (payload as { session?: { advice?: unknown } }).session?.advice;
+  if (typeof nested === "string" && nested.trim().length > 0) {
+    return nested.trim();
+  }
+
+  return null;
+}
+
 function resolveUploadFormat(contentType?: string): { extension: string; contentType: string } | null {
   const normalized = (contentType || "").toLowerCase();
   if (normalized.includes("mpeg") || normalized.includes("mp3")) {
@@ -683,13 +764,19 @@ function App() {
       }
 
       const saveData = await saveRes.json();
+      const advice = extractAdviceFromSaveResponse(saveData) ?? buildFallbackAdvice(uploadReadySession);
+      const persistedSession: Session = advice
+        ? { ...uploadReadySession, advice }
+        : uploadReadySession;
+
+      restoreSession(persistedSession);
       setSavedSessionId(sessionToSave.id);
       sessionStorage.removeItem("pending_session");
 
       if (showToast) {
-        toast.success("Session saved! Check your email for advice.");
-        if (saveData.advice) {
-          toast.info(saveData.advice, { duration: 10000 });
+        toast.success("Session saved.");
+        if (advice) {
+          toast.info(advice, { duration: 10000 });
         }
       }
 
@@ -1029,6 +1116,7 @@ function App() {
           <ScoreSummaryScreen
             overallScore={session.overallScore}
             audio={audio}
+            advice={session.advice ?? null}
             isSaving={isSaving}
             isSaved={savedSessionId === session.id}
             isAuthenticated={isAuthenticated}

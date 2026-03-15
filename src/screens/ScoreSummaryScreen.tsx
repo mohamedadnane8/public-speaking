@@ -5,6 +5,7 @@ import type { User } from "@/hooks/useAuth";
 interface ScoreSummaryScreenProps {
   overallScore: number;
   audio: SessionAudio | null | undefined;
+  advice?: string | null;
   isSaving?: boolean;
   isSaved?: boolean;
   isAuthenticated?: boolean;
@@ -17,6 +18,7 @@ interface ScoreSummaryScreenProps {
 export function ScoreSummaryScreen({
   overallScore,
   audio,
+  advice = null,
   isSaving = false,
   isSaved = false,
   isAuthenticated = false,
@@ -25,6 +27,14 @@ export function ScoreSummaryScreen({
   onReplay,
   onSaveAndGetAdvice,
 }: ScoreSummaryScreenProps) {
+  const adviceText =
+    advice ??
+    (isAuthenticated
+      ? "Generating your focused advice..."
+      : isSaving
+      ? "Redirecting to sign in..."
+      : "Save this session to get focused advice.");
+
   return (
     <motion.div
       key="score-summary"
@@ -61,6 +71,28 @@ export function ScoreSummaryScreen({
             out of 10
           </span>
         </motion.div>
+
+        {(advice || isSaving || isSaved || isAuthenticated) && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="w-full max-w-[min(100%,34rem)] border border-[#1a1a1a]/10 bg-[#1a1a1a]/[0.02] px-6 py-5"
+          >
+            <span
+              className="block text-[10px] tracking-[0.18em] uppercase text-[#1a1a1a]/45"
+              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 500 }}
+            >
+              Advice
+            </span>
+            <p
+              className="mt-2 text-base sm:text-lg leading-tight text-[#1a1a1a]/88"
+              style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}
+            >
+              {adviceText}
+            </p>
+          </motion.div>
+        )}
 
         {/* Actions */}
         <motion.div

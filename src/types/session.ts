@@ -73,6 +73,7 @@ export interface Session {
 
   audio?: SessionAudio;
   transcript?: string;
+  advice?: string;
 }
 
 export type Screen = 
