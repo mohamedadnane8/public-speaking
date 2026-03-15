@@ -45,6 +45,10 @@ export interface SessionAudio {
   recordingStartedAt?: string;
   recordingEndedAt?: string;
   errorCode?: AudioErrorCode;
+  objectKey?: string;
+  bucketName?: string;
+  region?: string;
+  uploadedAt?: string;
 }
 
 export interface Session {

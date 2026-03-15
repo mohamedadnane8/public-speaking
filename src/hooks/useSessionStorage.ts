@@ -9,6 +9,15 @@ function normalizeSession(session: Session): Session {
     ...session,
     language: session.language ?? "EN",
     difficulty: session.difficulty ?? "MEDIUM",
+    audio: session.audio
+      ? {
+          ...session.audio,
+          objectKey: session.audio.objectKey,
+          bucketName: session.audio.bucketName,
+          region: session.audio.region,
+          uploadedAt: session.audio.uploadedAt,
+        }
+      : session.audio,
   };
 }
 

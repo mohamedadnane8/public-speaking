@@ -60,6 +60,40 @@ const DIFFICULTY_TIME_MULTIPLIER: Record<SessionDifficulty, number> = {
   HARD: 0.8,
 };
 
+type AudioUploadResponse = {
+  objectKey: string;
+  bucketName: string;
+  region: string;
+  fileSize: number;
+  contentType: string;
+};
+
+function resolveUploadFormat(contentType?: string): { extension: string; contentType: string } | null {
+  const normalized = (contentType || "").toLowerCase();
+  if (normalized.includes("mpeg") || normalized.includes("mp3")) {
+    return { extension: ".mp3", contentType: "audio/mpeg" };
+  }
+  if (normalized.includes("wav")) {
+    return { extension: ".wav", contentType: "audio/wav" };
+  }
+  if (normalized.includes("mp4") || normalized.includes("m4a") || normalized.includes("aac")) {
+    return { extension: ".m4a", contentType: "audio/mp4" };
+  }
+  if (normalized.includes("webm")) {
+    return { extension: ".webm", contentType: "audio/webm" };
+  }
+  if (normalized.includes("ogg") || normalized.includes("opus")) {
+    return { extension: ".ogg", contentType: "audio/ogg" };
+  }
+  if (normalized.length === 0) {
+    // Most browsers default to webm when MediaRecorder does not expose explicit type.
+    return { extension: ".webm", contentType: "audio/webm" };
+  }
+
+  // Unsupported MIME type from recorder.
+  return null;
+}
+
 function getStoredLanguage(): SessionLanguage {
   if (typeof window === "undefined") return DEFAULT_LANGUAGE;
   const value = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
@@ -509,22 +543,84 @@ function App() {
     setIsSaving(true);
 
     try {
+      let uploadReadySession = sessionToSave;
+      const sessionAudio = sessionToSave.audio;
+
+      if (
+        sessionAudio?.available &&
+        sessionAudio.fileUri &&
+        sessionAudio.fileUri.startsWith("blob:") &&
+        !sessionAudio.objectKey
+      ) {
+        try {
+          const blobResponse = await fetch(sessionAudio.fileUri);
+          if (!blobResponse.ok) {
+            throw new Error(`Failed to read local audio blob (${blobResponse.status})`);
+          }
+
+          const blob = await blobResponse.blob();
+          if (blob.size <= 0) {
+            throw new Error("Recorded blob is empty");
+          }
+
+          const uploadFormat = resolveUploadFormat(blob.type);
+          if (!uploadFormat) {
+            throw new Error(`Unsupported recorded audio format: ${blob.type || "unknown"}`);
+          }
+
+          const uploadFile = new File([blob], `session-${sessionToSave.id}${uploadFormat.extension}`, {
+            type: uploadFormat.contentType,
+          });
+
+          const formData = new FormData();
+          formData.append("file", uploadFile);
+
+          const uploadRes = await apiClient("/api/audio/upload", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!uploadRes.ok) {
+            throw new Error(`Audio upload failed (${uploadRes.status})`);
+          }
+
+          const uploadData = (await uploadRes.json()) as AudioUploadResponse;
+          uploadReadySession = {
+            ...sessionToSave,
+            audio: {
+              ...sessionAudio,
+              objectKey: uploadData.objectKey,
+              bucketName: uploadData.bucketName,
+              region: uploadData.region,
+              uploadedAt: new Date().toISOString(),
+            },
+          };
+
+          restoreSession(uploadReadySession);
+        } catch (uploadError) {
+          console.error("Audio upload error:", uploadError);
+          if (showToast) {
+            toast.warning("Session saved, but audio upload failed.");
+          }
+        }
+      }
+
       let saveRes = await apiClient("/api/sessions", {
         method: "POST",
-        body: JSON.stringify(sessionToSave),
+        body: JSON.stringify(uploadReadySession),
       });
 
       // Compatibility fallback for deployments that only expose /api/sessions/record
       if (saveRes.status === 404 || saveRes.status === 405) {
         saveRes = await apiClient("/api/sessions/record", {
           method: "POST",
-          body: JSON.stringify(sessionToSave),
+          body: JSON.stringify(uploadReadySession),
         });
       }
 
       if (!saveRes.ok) {
         if (saveRes.status === 401 && loginIfUnauthenticated) {
-          sessionStorage.setItem("pending_session", JSON.stringify(sessionToSave));
+          sessionStorage.setItem("pending_session", JSON.stringify(uploadReadySession));
           login(window.location.pathname);
           return false;
         }
@@ -552,7 +648,7 @@ function App() {
     } finally {
       setIsSaving(false);
     }
-  }, [isAuthenticated, login]);
+  }, [isAuthenticated, login, restoreSession]);
 
   // Guest CTA: trigger login + save-after-auth flow
   const handleSaveAndGetAdvice = useCallback(async () => {
