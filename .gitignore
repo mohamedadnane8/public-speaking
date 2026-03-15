@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build cache
+node_modules/.tmp/
+node_modules/.vite/
+
+# Environment files
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store

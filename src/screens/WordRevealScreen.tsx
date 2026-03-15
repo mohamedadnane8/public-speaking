@@ -1,9 +1,11 @@
 import { motion } from "framer-motion";
 import { WordReveal } from "@/components/WordReveal";
 import type { ModeConfig } from "@/lib/modes";
+import type { SessionLanguage } from "@/types/session";
 
 interface WordRevealScreenProps {
   word: string;
+  language: SessionLanguage;
   modeConfig: ModeConfig;
   spinKey: number;
   isRevealing: boolean;
@@ -16,6 +18,7 @@ interface WordRevealScreenProps {
 
 export function WordRevealScreen({
   word,
+  language,
   modeConfig,
   spinKey,
   isRevealing,
@@ -54,6 +57,7 @@ export function WordRevealScreen({
         <WordReveal
           key={spinKey}
           word={word}
+          language={language}
           isRevealing={isRevealing}
           onRevealComplete={onRevealComplete}
           onLetterSettle={onLetterSettle}

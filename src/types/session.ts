@@ -6,6 +6,9 @@ export type Mode =
   | "SPEED"
   | "MANUAL";
 
+export type SessionLanguage = "EN" | "FR" | "AR";
+export type SessionDifficulty = "EASY" | "MEDIUM" | "HARD";
+
 export type RatingValue = 1 | 2 | 3 | 4 | 5;
 
 export type SessionStatus = "COMPLETED" | "CANCELLED" | "FAILED";
@@ -42,6 +45,10 @@ export interface SessionAudio {
   recordingStartedAt?: string;
   recordingEndedAt?: string;
   errorCode?: AudioErrorCode;
+  objectKey?: string;
+  bucketName?: string;
+  region?: string;
+  uploadedAt?: string;
 }
 
 export interface Session {
@@ -50,6 +57,8 @@ export interface Session {
   completedAt?: string;
 
   mode: Mode;
+  language: SessionLanguage;
+  difficulty: SessionDifficulty;
   word: string;
 
   thinkSeconds: number;
@@ -63,10 +72,14 @@ export interface Session {
   notes?: string;
 
   audio?: SessionAudio;
+  transcript?: string;
+  advice?: string;
 }
 
 export type Screen = 
   | "HOME"
+  | "HISTORY"
+  | "FEATURE_REQUEST"
   | "WORD_REVEAL"
   | "THINK"
   | "SPEAK"

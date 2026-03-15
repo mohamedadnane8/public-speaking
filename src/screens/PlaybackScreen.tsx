@@ -1,4 +1,6 @@
 import { motion } from "framer-motion";
+import { Play, Pause, SkipBack, SkipForward } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import type { ModeConfig } from "@/lib/modes";
 import type { SessionAudio } from "@/types/session";
 
@@ -6,17 +8,36 @@ interface PlaybackScreenProps {
   word: string;
   modeConfig: ModeConfig;
   audio: SessionAudio | null | undefined;
+  transcript: string | undefined;
   isPlaying: boolean;
+  currentTime: number;
+  duration: number;
   onPlayToggle: () => void;
+  onSeek: (time: number) => void;
+  onSkipBackward: () => void;
+  onSkipForward: () => void;
   onContinue: () => void;
+}
+
+function formatTime(seconds: number): string {
+  if (!isFinite(seconds) || seconds < 0) return "0:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
 export function PlaybackScreen({
   word,
   modeConfig,
   audio,
+  transcript,
   isPlaying,
+  currentTime,
+  duration,
   onPlayToggle,
+  onSeek,
+  onSkipBackward,
+  onSkipForward,
   onContinue,
 }: PlaybackScreenProps) {
   const getErrorMessage = (errorCode?: string) => {
@@ -29,6 +50,8 @@ export function PlaybackScreen({
       default: return "";
     }
   };
+
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
     <motion.div
@@ -63,17 +86,75 @@ export function PlaybackScreen({
         </span>
 
         {/* Playback controls */}
-        <div className="flex flex-col items-center gap-6">
+        <div className="flex flex-col items-center gap-6 w-full">
           {audio?.available && audio.fileUri ? (
-            <motion.button
-              onClick={onPlayToggle}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="px-12 py-4 bg-[#1a1a1a] text-[#FDF6F0]/90 text-xs tracking-[0.25em] uppercase transition-all duration-300"
-              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center gap-4 w-full max-w-sm"
             >
-              {isPlaying ? "PAUSE" : "PLAY"}
-            </motion.button>
+              {/* Progress bar with time */}
+              <div className="w-full flex items-center gap-3">
+                <span
+                  className="text-xs text-[#1a1a1a]/50 w-10 text-right"
+                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                >
+                  {formatTime(currentTime)}
+                </span>
+                <Slider
+                  value={[progress]}
+                  max={100}
+                  step={0.1}
+                  onValueChange={([value]) => onSeek((value / 100) * duration)}
+                  className="flex-1"
+                />
+                <span
+                  className="text-xs text-[#1a1a1a]/50 w-10"
+                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                >
+                  {formatTime(duration)}
+                </span>
+              </div>
+
+              {/* Control buttons */}
+              <div className="flex items-center gap-6">
+                {/* Skip backward 5s */}
+                <button
+                  type="button"
+                  onClick={onSkipBackward}
+                  className="p-3 text-[#1a1a1a]/60 hover:text-[#1a1a1a] hover:bg-[#1a1a1a]/5 rounded-full transition-all"
+                  aria-label="Skip back 5 seconds"
+                >
+                  <SkipBack size={20} />
+                </button>
+
+                {/* Play/Pause */}
+                <button
+                  type="button"
+                  onClick={onPlayToggle}
+                  className="p-4 bg-[#1a1a1a] text-[#FDF6F0] rounded-full hover:bg-[#1a1a1a]/90 transition-all"
+                  aria-label={isPlaying ? "Pause" : "Play"}
+                >
+                  {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-0.5" />}
+                </button>
+
+                {/* Skip forward 5s */}
+                <button
+                  type="button"
+                  onClick={onSkipForward}
+                  className="p-3 text-[#1a1a1a]/60 hover:text-[#1a1a1a] hover:bg-[#1a1a1a]/5 rounded-full transition-all"
+                  aria-label="Skip forward 5 seconds"
+                >
+                  <SkipForward size={20} />
+                </button>
+              </div>
+
+              {/* Skip labels */}
+              <div className="flex items-center gap-12 text-[10px] tracking-[0.1em] uppercase text-[#1a1a1a]/30">
+                <span>-5s</span>
+                <span>+5s</span>
+              </div>
+            </motion.div>
           ) : (
             <div className="flex flex-col items-center gap-2">
               <span
@@ -93,16 +174,38 @@ export function PlaybackScreen({
             </div>
           )}
 
-          <motion.button
+          <button
+            type="button"
             onClick={onContinue}
-            whileHover={{ backgroundColor: "rgba(26, 26, 26, 0.06)" }}
-            whileTap={{ scale: 0.98 }}
-            className="text-[11px] tracking-[0.15em] uppercase text-[#1a1a1a]/55 hover:text-[#1a1a1a]/80 transition-colors"
+            className="text-[11px] tracking-[0.15em] uppercase text-[#1a1a1a]/55 hover:text-[#1a1a1a]/80 transition-colors px-4 py-2 hover:bg-[#1a1a1a]/5 rounded cursor-pointer"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
             Continue
-          </motion.button>
+          </button>
         </div>
+
+        {/* Transcript */}
+        {transcript && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="w-full max-w-md mt-6"
+          >
+            <h3
+              className="text-xs tracking-[0.2em] uppercase text-[#1a1a1a]/60 mb-3 text-center"
+              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+            >
+              Transcript
+            </h3>
+            <div
+              className="px-4 py-3 bg-[#1a1a1a]/5 border border-[#1a1a1a]/10 text-sm text-[#1a1a1a]/80 max-h-40 overflow-y-auto"
+              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+            >
+              {transcript}
+            </div>
+          </motion.div>
+        )}
       </div>
     </motion.div>
   );

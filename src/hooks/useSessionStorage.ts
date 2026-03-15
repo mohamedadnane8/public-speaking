@@ -4,6 +4,23 @@ import type { Session } from "@/types/session";
 const STORAGE_KEY = "impromptu_sessions";
 const MAX_SESSIONS = 50; // Keep last 50 sessions to avoid storage overflow
 
+function normalizeSession(session: Session): Session {
+  return {
+    ...session,
+    language: session.language ?? "EN",
+    difficulty: session.difficulty ?? "MEDIUM",
+    audio: session.audio
+      ? {
+          ...session.audio,
+          objectKey: session.audio.objectKey,
+          bucketName: session.audio.bucketName,
+          region: session.audio.region,
+          uploadedAt: session.audio.uploadedAt,
+        }
+      : session.audio,
+  };
+}
+
 export function useSessionStorage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -14,7 +31,7 @@ export function useSessionStorage() {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored) as Session[];
-        setSessions(parsed);
+        setSessions(parsed.map(normalizeSession));
       }
     } catch (error) {
       console.error("Failed to load sessions:", error);
@@ -37,7 +54,7 @@ export function useSessionStorage() {
     setSessions((prev) => {
       // Replace existing session if same ID, otherwise add new
       const filtered = prev.filter((s) => s.id !== session.id);
-      const updated = [session, ...filtered];
+      const updated = [normalizeSession(session), ...filtered];
       // Keep only last N sessions
       return updated.slice(0, MAX_SESSIONS);
     });
@@ -53,7 +70,7 @@ export function useSessionStorage() {
   const updateSession = useCallback(
     (id: string, updates: Partial<Session>) => {
       setSessions((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
+        prev.map((s) => (s.id === id ? normalizeSession({ ...s, ...updates }) : s))
       );
     },
     []

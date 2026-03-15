@@ -17,6 +17,7 @@ export function useTimer(
   const [seconds, setSeconds] = useState(initialSeconds);
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isRunningRef = useRef(false);
   const secondsRef = useRef(seconds);
   const onTickRef = useRef(onTick);
   
@@ -25,7 +26,9 @@ export function useTimer(
 
   const start = useCallback(() => {
     const current = secondsRef.current;
-    if (!isRunning && current > 0) {
+    // Use ref to prevent race conditions - state updates are async
+    if (!isRunningRef.current && current > 0) {
+      isRunningRef.current = true;
       setIsRunning(true);
       intervalRef.current = setInterval(() => {
         setSeconds((prev) => {
@@ -34,8 +37,10 @@ export function useTimer(
             onTickRef.current?.(next);
           }
           if (next <= 0) {
+            isRunningRef.current = false;
             setIsRunning(false);
             if (intervalRef.current) clearInterval(intervalRef.current);
+            intervalRef.current = null;
             onComplete?.();
             return 0;
           }
@@ -43,9 +48,10 @@ export function useTimer(
         });
       }, 1000);
     }
-  }, [isRunning, onComplete]);
+  }, [onComplete]);
 
   const pause = useCallback(() => {
+    isRunningRef.current = false;
     setIsRunning(false);
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -54,6 +60,7 @@ export function useTimer(
   }, []);
 
   const reset = useCallback((newSeconds: number) => {
+    isRunningRef.current = false;
     setIsRunning(false);
     if (intervalRef.current) {
       clearInterval(intervalRef.current);

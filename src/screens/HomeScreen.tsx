@@ -1,27 +1,50 @@
 import { motion } from "framer-motion";
 import type { ModeConfig } from "@/lib/modes";
+import type { SessionDifficulty, SessionLanguage } from "@/types/session";
+
+import { isTranscriptionSupported } from "@/hooks/useTranscription";
 
 interface HomeScreenProps {
   modeConfig: ModeConfig;
   manualThinkSeconds: number;
   manualSpeakSeconds: number;
+  selectedLanguage: SessionLanguage;
+  selectedDifficulty: SessionDifficulty;
   isRecordingSupported: boolean;
   hasRecordingPermission: boolean | null;
   isRequestingPermission: boolean;
   onModeCycle: () => void;
+  onLanguageChange: (language: SessionLanguage) => void;
+  onDifficultyChange: (difficulty: SessionDifficulty) => void;
   onManualTimeChange: (type: "think" | "speak", delta: number) => void;
   onRequestPermission: () => void;
   onSpin: () => void;
 }
 
+const LANGUAGE_OPTIONS: Array<{ value: SessionLanguage; label: string }> = [
+  { value: "EN", label: "EN" },
+  { value: "FR", label: "FR" },
+  { value: "AR", label: "AR" },
+];
+
+const DIFFICULTY_OPTIONS: Array<{ value: SessionDifficulty; label: string }> = [
+  { value: "EASY", label: "Easy" },
+  { value: "MEDIUM", label: "Medium" },
+  { value: "HARD", label: "Hard" },
+];
+
 export function HomeScreen({
   modeConfig,
   manualThinkSeconds,
   manualSpeakSeconds,
+  selectedLanguage,
+  selectedDifficulty,
   isRecordingSupported,
   hasRecordingPermission,
   isRequestingPermission,
   onModeCycle,
+  onLanguageChange,
+  onDifficultyChange,
   onManualTimeChange,
   onRequestPermission,
   onSpin,
@@ -144,6 +167,45 @@ export function HomeScreen({
           </span>
         </button>
 
+        {/* Language and difficulty */}
+        <div className="flex w-full flex-col items-center gap-3">
+          <div className="flex items-center gap-2">
+            {LANGUAGE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => onLanguageChange(option.value)}
+                className={`min-w-[3rem] border px-3 py-1 text-[10px] uppercase tracking-[0.18em] transition-colors ${
+                  selectedLanguage === option.value
+                    ? "border-[#1a1a1a]/65 bg-[#1a1a1a]/8 text-[#1a1a1a]"
+                    : "border-[#1a1a1a]/20 text-[#1a1a1a]/55 hover:border-[#1a1a1a]/40 hover:text-[#1a1a1a]/75"
+                }`}
+                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {DIFFICULTY_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => onDifficultyChange(option.value)}
+                className={`border px-3 py-1 text-[10px] uppercase tracking-[0.18em] transition-colors ${
+                  selectedDifficulty === option.value
+                    ? "border-[#1a1a1a]/65 bg-[#1a1a1a]/8 text-[#1a1a1a]"
+                    : "border-[#1a1a1a]/20 text-[#1a1a1a]/55 hover:border-[#1a1a1a]/40 hover:text-[#1a1a1a]/75"
+                }`}
+                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Decorative dashes */}
         <div
           className="flex items-center justify-center text-4xl sm:text-5xl md:text-6xl lg:text-7xl gap-1.5 sm:gap-4 md:gap-6 lg:gap-8 w-fit max-w-full"
@@ -235,18 +297,30 @@ export function HomeScreen({
           SPIN
         </motion.button>
 
-        {/* Recording warning */}
-        {!isRecordingSupported && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8, duration: 0.5 }}
-            className="text-[10px] tracking-[0.1em] text-[#7A2E2E]/70 text-center"
-            style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-          >
-            Recording not available — use HTTPS or enable microphone permissions
-          </motion.p>
-        )}
+        {/* Feature indicators */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8, duration: 0.5 }}
+          className="flex flex-col items-center gap-2"
+        >
+          {!isRecordingSupported && (
+            <span
+              className="text-[10px] tracking-[0.1em] text-[#7A2E2E]/70 text-center"
+              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+            >
+              Recording not available — use HTTPS
+            </span>
+          )}
+          {!isTranscriptionSupported && (
+            <span
+              className="text-[10px] tracking-[0.1em] text-[#1a1a1a]/30 text-center"
+              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+            >
+              Transcription not supported in this browser
+            </span>
+          )}
+        </motion.div>
       </div>
     </motion.div>
   );
