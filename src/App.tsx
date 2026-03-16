@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { AnimatePresence } from "framer-motion";
 import { Toaster, toast } from "sonner";
 import { useTimer } from "./hooks/useTimer";
@@ -267,6 +267,7 @@ function App() {
   const [saveAttemptedSessionId, setSaveAttemptedSessionId] = useState<string | null>(null);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const [remoteSessions, setRemoteSessions] = useState<Session[] | null>(null);
   
   // Auth hook
   const { user, isAuthenticated, isLoading: isAuthLoading, login, logout } = useAuth();
@@ -640,9 +641,59 @@ function App() {
   };
 
   const handleOpenHistory = useCallback(() => {
+    if (!isAuthenticated) return;
     setIsAccountMenuOpen(false);
     setScreen("HISTORY");
-  }, []);
+  }, [isAuthenticated]);
+
+  const loadRemoteSessions = useCallback(async () => {
+    if (!isAuthenticated) return;
+
+    try {
+      const response = await apiClient("/api/sessions", { method: "GET" });
+      if (!response.ok) {
+        throw new Error(`Failed to load remote sessions (${response.status})`);
+      }
+
+      const payload = await response.json();
+      if (!Array.isArray(payload)) {
+        setRemoteSessions([]);
+        return;
+      }
+
+      const mapped = (payload as Session[]).map((session) => ({
+        ...session,
+        language: session.language ?? DEFAULT_LANGUAGE,
+        difficulty: session.difficulty ?? DEFAULT_DIFFICULTY,
+      }));
+
+      setRemoteSessions(mapped);
+    } catch (error) {
+      console.error("Failed to load remote sessions:", error);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setRemoteSessions(null);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (screen !== "HISTORY" || !isAuthenticated) return;
+    void loadRemoteSessions();
+  }, [screen, isAuthenticated, loadRemoteSessions]);
+
+  useEffect(() => {
+    if (screen === "HISTORY" && !isAuthenticated) {
+      setScreen("HOME");
+    }
+  }, [screen, isAuthenticated]);
+
+  const historySessions = useMemo(() => {
+    if (!isAuthenticated) return sessions;
+    return remoteSessions ?? [];
+  }, [isAuthenticated, remoteSessions, sessions]);
 
   const handleRequestFeature = useCallback(() => {
     setIsAccountMenuOpen(false);
@@ -926,7 +977,10 @@ function App() {
       <div className={`absolute right-4 top-4 z-50 flex items-center gap-2 sm:right-6 sm:top-6 sm:gap-3 md:right-8 md:top-8 md:gap-4 ${
         screen === "HOME" ? "max-w-[13rem] xl:max-w-none" : ""
       }`}>
-        {!isAuthSuccessPage && !isAuthErrorPage && (screen === "HOME" || screen === "SCORE_SUMMARY") && (
+        {isAuthenticated &&
+          !isAuthSuccessPage &&
+          !isAuthErrorPage &&
+          (screen === "HOME" || screen === "SCORE_SUMMARY") && (
           <button
             type="button"
             onClick={handleOpenHistory}
@@ -1035,9 +1089,9 @@ function App() {
       </div>
 
       <AnimatePresence mode="wait">
-        {screen === "HISTORY" && (
+        {screen === "HISTORY" && isAuthenticated && (
           <HistoryScreen
-            sessions={sessions}
+            sessions={historySessions}
             isAuthenticated={isAuthenticated}
             onBack={() => setScreen("HOME")}
             onDeleteSession={handleDeleteHistorySession}
