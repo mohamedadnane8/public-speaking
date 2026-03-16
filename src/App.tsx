@@ -904,16 +904,31 @@ function App() {
     });
   }, []);
 
-  const handleDeleteHistorySession = useCallback((id: string) => {
-    deleteHistorySession(id);
-    if (savedSessionId === id) {
-      setSavedSessionId(null);
+  const handleDeleteHistorySession = useCallback(async (id: string) => {
+    try {
+      if (isAuthenticated) {
+        const response = await apiClient(`/api/sessions/${id}`, { method: "DELETE" });
+        if (!response.ok && response.status !== 404) {
+          throw new Error(`Failed to delete session (${response.status})`);
+        }
+
+        setRemoteSessions((prev) => prev?.filter((session) => session.id !== id) ?? prev);
+      }
+
+      deleteHistorySession(id);
+      if (savedSessionId === id) {
+        setSavedSessionId(null);
+      }
+      if (saveAttemptedSessionId === id) {
+        setSaveAttemptedSessionId(null);
+      }
+
+      toast.success("Session removed from history.");
+    } catch (error) {
+      console.error("Delete session error:", error);
+      toast.error("Failed to delete session.");
     }
-    if (saveAttemptedSessionId === id) {
-      setSaveAttemptedSessionId(null);
-    }
-    toast.success("Session removed from history.");
-  }, [deleteHistorySession, savedSessionId, saveAttemptedSessionId]);
+  }, [deleteHistorySession, isAuthenticated, savedSessionId, saveAttemptedSessionId]);
 
   // Back navigation
   const handleBack = () => {
@@ -940,6 +955,9 @@ function App() {
         break;
     }
   };
+
+  const canAccessHistory = isAuthenticated && !isAuthSuccessPage && !isAuthErrorPage;
+  const isHistoryScreen = screen === "HISTORY";
 
   return (
     <div
@@ -977,10 +995,7 @@ function App() {
       <div className={`absolute right-4 top-4 z-50 flex items-center gap-2 sm:right-6 sm:top-6 sm:gap-3 md:right-8 md:top-8 md:gap-4 ${
         screen === "HOME" ? "max-w-[13rem] xl:max-w-none" : ""
       }`}>
-        {isAuthenticated &&
-          !isAuthSuccessPage &&
-          !isAuthErrorPage &&
-          (screen === "HOME" || screen === "SCORE_SUMMARY") && (
+        {canAccessHistory && (screen === "HOME" || screen === "SCORE_SUMMARY") && (
           <button
             type="button"
             onClick={handleOpenHistory}
@@ -1031,19 +1046,21 @@ function App() {
                     role="menu"
                     aria-label="Account menu"
                   >
-                    {!isAuthSuccessPage &&
-                      !isAuthErrorPage &&
-                      (screen === "HOME" || screen === "SCORE_SUMMARY") && (
-                        <button
-                          type="button"
-                          onClick={handleOpenHistory}
-                          className="w-full px-4 py-2 text-left text-[11px] tracking-[0.08em] uppercase text-[#1a1a1a]/75 hover:bg-[#1a1a1a]/5 hover:text-[#1a1a1a] transition-colors xl:hidden"
-                          style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-                          role="menuitem"
-                        >
-                          History
-                        </button>
-                      )}
+                    {canAccessHistory && (
+                      <button
+                        type="button"
+                        onClick={isHistoryScreen ? () => setIsAccountMenuOpen(false) : handleOpenHistory}
+                        className={`w-full px-4 py-2 text-left text-[11px] tracking-[0.08em] uppercase transition-colors ${
+                          isHistoryScreen
+                            ? "text-[#1a1a1a]/35 cursor-default"
+                            : "text-[#1a1a1a]/75 hover:bg-[#1a1a1a]/5 hover:text-[#1a1a1a]"
+                        }`}
+                        style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                        role="menuitem"
+                      >
+                        History
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={handleRequestFeature}
