@@ -84,6 +84,7 @@ export const WordReveal = ({
     () => getLetterSpacing(word, language),
     [word, language]
   );
+  const canWrapAtSpaces = useMemo(() => /\s/.test(word.trim()), [word]);
 
   const clearTimers = useCallback(() => {
     for (const id of timeoutRefs.current) {
@@ -120,33 +121,58 @@ export const WordReveal = ({
 
     const containerWidth = Math.max(1, container.clientWidth);
     const { maxPx, minPx } = getFontBounds();
+    const singleLineFloorPx = canWrapAtSpaces ? Math.max(42, minPx - 14) : Math.max(24, minPx - 12);
+    const twoLineFloorPx = Math.max(30, minPx - 8);
     let nextSize = maxPx;
+    let lines: 1 | 2 = 1;
 
     measurer.textContent = word;
     measurer.style.width = `${containerWidth}px`;
     measurer.style.letterSpacing = letterSpacing;
     measurer.style.lineHeight = String(lineHeight);
 
-    const exceedsTwoLines = () => {
-      const maxHeight = nextSize * lineHeight * 2 + 1;
-      return measurer.scrollHeight > maxHeight;
+    const setMeasureWrapMode = (wrapAtSpaces: boolean) => {
+      measurer.style.whiteSpace = wrapAtSpaces ? "normal" : "nowrap";
+      measurer.style.overflowWrap = "normal";
+      measurer.style.wordBreak = "normal";
+      measurer.style.hyphens = "none";
     };
 
-    while (nextSize > minPx) {
-      measurer.style.fontSize = `${nextSize}px`;
-      if (!exceedsTwoLines()) {
-        break;
-      }
+    const exceedsOneLine = (size: number) => {
+      setMeasureWrapMode(false);
+      measurer.style.fontSize = `${size}px`;
+      const maxHeight = size * lineHeight * 1.18;
+      return measurer.scrollWidth > containerWidth + 1 || measurer.scrollHeight > maxHeight;
+    };
+
+    const exceedsTwoLines = (size: number) => {
+      setMeasureWrapMode(true);
+      measurer.style.fontSize = `${size}px`;
+      const maxHeight = size * lineHeight * 2 + 1;
+      return measurer.scrollHeight > maxHeight || measurer.scrollWidth > containerWidth + 1;
+    };
+
+    // Prefer one line whenever possible.
+    while (nextSize > singleLineFloorPx && exceedsOneLine(nextSize)) {
       nextSize -= 1;
     }
 
-    measurer.style.fontSize = `${nextSize}px`;
-    const oneLineMaxHeight = nextSize * lineHeight * 1.18;
-    const lines: 1 | 2 = measurer.scrollHeight > oneLineMaxHeight ? 2 : 1;
+    if (exceedsOneLine(nextSize)) {
+      // If one-line would become too small, allow up to two lines.
+      lines = canWrapAtSpaces ? 2 : 1;
+      if (canWrapAtSpaces) {
+        nextSize = maxPx;
+        while (nextSize > twoLineFloorPx && exceedsTwoLines(nextSize)) {
+          nextSize -= 1;
+        }
+      }
+    } else {
+      lines = 1;
+    }
 
     setFontSizePx(nextSize);
     setTargetLineCount(lines);
-  }, [word, language, lineHeight, letterSpacing, fitTick]);
+  }, [word, language, lineHeight, letterSpacing, fitTick, canWrapAtSpaces]);
 
   useEffect(() => {
     if (!isRevealing) {
@@ -241,7 +267,7 @@ export const WordReveal = ({
   return (
     <div className="relative w-full">
       <motion.div
-        className="mx-auto flex w-full max-w-[min(94vw,42rem)] min-h-[7.5rem] items-center justify-center px-2 sm:min-h-[9.5rem] md:min-h-[11rem]"
+        className="mx-auto flex w-full max-w-[min(96vw,60rem)] min-h-[7.5rem] items-center justify-center px-2 sm:min-h-[9.5rem] md:min-h-[11rem]"
         animate={{ scale: showUnderline ? 1.02 : 1 }}
         transition={{ duration: 0.4 }}
       >
@@ -260,9 +286,9 @@ export const WordReveal = ({
               color: "#1a1a1a",
               unicodeBidi: isArabic ? "isolate" : "normal",
               whiteSpace: useTwoLines ? "normal" : "nowrap",
-              overflowWrap: useTwoLines ? "anywhere" : "normal",
-              wordBreak: useTwoLines ? "break-word" : "normal",
-              hyphens: useTwoLines ? "auto" : "manual",
+              overflowWrap: "normal",
+              wordBreak: "normal",
+              hyphens: "none",
               textWrap: useTwoLines ? "balance" : "nowrap",
               display: useTwoLines ? "-webkit-box" : "block",
               WebkitLineClamp: useTwoLines ? 2 : undefined,
@@ -289,10 +315,10 @@ export const WordReveal = ({
               fontWeight: isArabic ? 700 : 500,
               letterSpacing,
               lineHeight,
-              whiteSpace: "normal",
-              overflowWrap: "anywhere",
-              wordBreak: "break-word",
-              hyphens: "auto",
+              whiteSpace: canWrapAtSpaces ? "normal" : "nowrap",
+              overflowWrap: "normal",
+              wordBreak: "normal",
+              hyphens: "none",
             }}
           >
             {word}

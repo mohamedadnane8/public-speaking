@@ -19,9 +19,9 @@ export function ThinkScreen({ word, seconds, totalSeconds, onSkip }: ThinkScreen
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
-      className="min-h-screen w-full flex flex-col items-center justify-center px-4"
+      className="min-h-[100svh] w-full px-4 pt-[max(env(safe-area-inset-top),5.75rem)] pb-[max(env(safe-area-inset-bottom),1.5rem)]"
     >
-      <div className="flex flex-col items-center space-y-10 w-full max-w-[min(100%,32rem)]">
+      <div className="mx-auto flex h-full min-h-[calc(100svh-7.25rem)] w-full max-w-[min(100%,32rem)] flex-col items-center justify-center space-y-8 sm:space-y-10">
         {/* Phase indicator */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -37,7 +37,7 @@ export function ThinkScreen({ word, seconds, totalSeconds, onSkip }: ThinkScreen
         </motion.div>
 
         {/* Word with circular timer */}
-        <div className="min-h-[320px] sm:min-h-[360px] md:min-h-[400px] w-full flex flex-col items-center justify-center">
+        <div className="min-h-[280px] sm:min-h-[360px] md:min-h-[400px] w-full flex flex-col items-center justify-center">
           <CircularProgress
             progress={progress}
             seconds={seconds}

@@ -640,6 +640,7 @@ function App() {
   };
 
   const handleOpenHistory = useCallback(() => {
+    setIsAccountMenuOpen(false);
     setScreen("HISTORY");
   }, []);
 
@@ -912,7 +913,7 @@ function App() {
         <button
           type="button"
           onClick={handleBack}
-          className="absolute top-8 left-8 z-50 p-2 text-[#1a1a1a]/50 hover:text-[#1a1a1a]/80 transition-colors"
+          className="absolute left-4 top-4 z-50 p-2 text-[#1a1a1a]/50 transition-colors hover:text-[#1a1a1a]/80 sm:left-6 sm:top-6 md:left-8 md:top-8"
           aria-label="Back"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -922,12 +923,16 @@ function App() {
       )}
 
       {/* User auth section */}
-      <div className="absolute top-8 right-8 z-50 flex items-center gap-4">
+      <div className={`absolute right-4 top-4 z-50 flex items-center gap-2 sm:right-6 sm:top-6 sm:gap-3 md:right-8 md:top-8 md:gap-4 ${
+        screen === "HOME" ? "max-w-[13rem] xl:max-w-none" : ""
+      }`}>
         {!isAuthSuccessPage && !isAuthErrorPage && (screen === "HOME" || screen === "SCORE_SUMMARY") && (
           <button
             type="button"
             onClick={handleOpenHistory}
-            className="text-xs tracking-[0.15em] text-[#1a1a1a]/60 hover:text-[#1a1a1a] transition-colors uppercase"
+            className={`hidden text-xs tracking-[0.15em] text-[#1a1a1a]/60 transition-colors uppercase hover:text-[#1a1a1a] ${
+              screen === "HOME" ? "xl:inline-block" : "sm:inline-block"
+            }`}
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
             History
@@ -940,15 +945,20 @@ function App() {
                 <button
                   type="button"
                   onClick={() => setIsAccountMenuOpen((prev) => !prev)}
-                  className="flex items-center gap-2 text-xs text-[#1a1a1a]/70 hover:text-[#1a1a1a] transition-colors"
+                  className="flex items-center gap-2 whitespace-nowrap text-xs text-[#1a1a1a]/70 transition-colors hover:text-[#1a1a1a]"
                   style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                   aria-haspopup="menu"
                   aria-expanded={isAccountMenuOpen}
                 >
-                  <span className="hidden sm:inline">
+                  {screen === "HOME" && (
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#1a1a1a]/25 text-[11px] uppercase text-[#1a1a1a]/70 xl:hidden">
+                      {user.firstName.slice(0, 1)}
+                    </span>
+                  )}
+                  <span className={screen === "HOME" ? "hidden xl:inline" : "hidden sm:inline"}>
                     {user.firstName} {user.lastName}
                   </span>
-                  <span className="sm:hidden">{user.firstName}</span>
+                  <span className={screen === "HOME" ? "hidden" : "sm:hidden"}>{user.firstName}</span>
                   <svg
                     className={`h-3 w-3 transition-transform ${isAccountMenuOpen ? "rotate-180" : ""}`}
                     viewBox="0 0 12 12"
@@ -967,6 +977,19 @@ function App() {
                     role="menu"
                     aria-label="Account menu"
                   >
+                    {!isAuthSuccessPage &&
+                      !isAuthErrorPage &&
+                      (screen === "HOME" || screen === "SCORE_SUMMARY") && (
+                        <button
+                          type="button"
+                          onClick={handleOpenHistory}
+                          className="w-full px-4 py-2 text-left text-[11px] tracking-[0.08em] uppercase text-[#1a1a1a]/75 hover:bg-[#1a1a1a]/5 hover:text-[#1a1a1a] transition-colors xl:hidden"
+                          style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                          role="menuitem"
+                        >
+                          History
+                        </button>
+                      )}
                     <button
                       type="button"
                       onClick={handleRequestFeature}
@@ -1002,7 +1025,9 @@ function App() {
           </>
         )}
         <span
-          className="text-[10px] tracking-[0.4em] text-[#1a1a1a]/30 uppercase"
+          className={screen === "HOME"
+            ? "hidden"
+            : "hidden text-[10px] tracking-[0.4em] text-[#1a1a1a]/30 uppercase xl:inline"}
           style={{ fontFamily: '"Inter", sans-serif', fontWeight: 300 }}
         >
           @ADNANELOGS
