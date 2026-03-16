@@ -367,7 +367,10 @@ export function HistoryScreen({
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  disabled={!selectedSession.audio?.available || !selectedSession.audio?.fileUri}
+                  disabled={
+                    !selectedSession.audio?.available ||
+                    (!selectedSession.audio?.fileUri && !selectedSession.audio?.objectKey)
+                  }
                   onClick={() => onReplayAudio(selectedSession)}
                   className="border border-[#1a1a1a]/25 px-4 py-2 text-[10px] uppercase tracking-[0.18em] text-[#1a1a1a]/70 transition-colors hover:border-[#1a1a1a]/45 hover:text-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-35"
                   style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}

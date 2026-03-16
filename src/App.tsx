@@ -891,17 +891,38 @@ function App() {
     setIsPlaying(true);
   };
 
-  const handleReplayHistoryAudio = useCallback((historySession: Session) => {
-    const fileUri = historySession.audio?.fileUri;
-    if (!fileUri) {
-      toast.error("No audio available for this session.");
-      return;
-    }
+  const handleReplayHistoryAudio = useCallback(async (historySession: Session) => {
+    try {
+      let audioUrl = historySession.audio?.fileUri;
 
-    const audioInstance = new Audio(fileUri);
-    audioInstance.play().catch(() => {
+      if (!audioUrl) {
+        if (!historySession.audio?.objectKey) {
+          toast.error("No audio available for this session.");
+          return;
+        }
+
+        const response = await apiClient(`/api/sessions/${historySession.id}/audio-url`, {
+          method: "GET",
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to get audio URL (${response.status})`);
+        }
+
+        const payload = (await response.json()) as { url?: unknown };
+        if (typeof payload.url !== "string" || payload.url.trim().length === 0) {
+          throw new Error("Audio URL is missing in response");
+        }
+
+        audioUrl = payload.url;
+      }
+
+      const audioInstance = new Audio(audioUrl);
+      await audioInstance.play();
+    } catch (error) {
+      console.error("History audio replay error:", error);
       toast.error("Unable to replay this audio file.");
-    });
+    }
   }, []);
 
   const handleDeleteHistorySession = useCallback(async (id: string) => {
