@@ -18,6 +18,10 @@ let accessToken: string | null = null;
 let isRefreshing = false;
 let refreshQueue: Array<(token: string | null) => void> = [];
 
+// Track consecutive refresh failures to detect persistent cookie misconfiguration
+let consecutiveRefreshFailures = 0;
+const MAX_CONSECUTIVE_FAILURES = 3;
+
 /**
  * Logger helper for auth debugging
  */
@@ -47,10 +51,11 @@ function logAuth(level: "info" | "warn" | "error", message: string, data?: unkno
 export function setAccessToken(token: string | null): void {
   const previousToken = accessToken ? `${accessToken.substring(0, 20)}...` : null;
   const newToken = token ? `${token.substring(0, 20)}...` : null;
-  
+
   accessToken = token;
-  
+
   if (token) {
+    consecutiveRefreshFailures = 0; // Reset on any successful token set
     logAuth("info", "🔑 Access token set", {
       previous: previousToken,
       new: newToken,
@@ -74,6 +79,7 @@ export function getAccessToken(): string | null {
 export function clearAccessToken(): void {
   const previousToken = accessToken ? `${accessToken.substring(0, 20)}...` : null;
   accessToken = null;
+  consecutiveRefreshFailures = 0; // Reset so next login starts fresh
   logAuth("warn", "🗑️ Access token cleared (logout)", { previous: previousToken });
 }
 
@@ -102,96 +108,96 @@ async function performRefresh(): Promise<string | null> {
     });
   }
 
+  // If we've failed too many times in a row, the refresh cookie is likely
+  // missing due to SameSite/Secure misconfiguration or third-party cookie blocking.
+  // Stop retrying to avoid infinite 401 loops.
+  if (consecutiveRefreshFailures >= MAX_CONSECUTIVE_FAILURES) {
+    logAuth("error", "🚫 Too many consecutive refresh failures — likely a cookie configuration issue. Stopping refresh attempts.");
+    processQueue(new Error("Persistent refresh failure"), null);
+    return null;
+  }
+
   isRefreshing = true;
-  logAuth("info", "🔄 Starting token refresh...", { 
+  logAuth("info", "🔄 Starting token refresh...", {
     url: `${API_BASE_URL}/api/auth/refresh`,
     hasExistingToken: !!accessToken,
+    consecutiveFailures: consecutiveRefreshFailures,
   });
 
   try {
-    let response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+    const token = await attemptRefresh();
+    consecutiveRefreshFailures = 0; // Reset on success
+    setAccessToken(token);
+    processQueue(null, token);
+    return token;
+  } catch (error) {
+    consecutiveRefreshFailures++;
+    logAuth("error", `❌ Token refresh failed (${consecutiveRefreshFailures}/${MAX_CONSECUTIVE_FAILURES})`, error);
+    clearAccessToken();
+    processQueue(error as Error, null);
+    return null;
+  } finally {
+    isRefreshing = false;
+  }
+}
+
+const MAX_REFRESH_RETRIES = 2;
+
+/**
+ * Attempt a single token refresh with retry logic for transient failures.
+ * Retries on network errors and 409 (token already rotated), not on 401 (invalid session).
+ */
+async function attemptRefresh(attempt = 0): Promise<string> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
       method: "POST",
-      credentials: "include", // CRITICAL: Sends the refresh cookie
-      headers: {
-        "Accept": "application/json",
-      },
+      credentials: "include",
+      headers: { "Accept": "application/json" },
     });
 
     logAuth("info", "📥 Refresh response received", {
       status: response.status,
-      statusText: response.statusText,
-      // Note: We can't read Set-Cookie headers from JS due to HttpOnly
-      // But we can check if the response was ok
+      attempt,
     });
 
-    if (!response.ok && response.status === 409) {
-      logAuth("warn", "♻️ Refresh token already rotated (parallel request). Retrying once...");
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Accept": "application/json",
-        },
-      });
+    // 409 = token already rotated by a parallel request; retry with the new cookie
+    if (response.status === 409 && attempt < MAX_REFRESH_RETRIES) {
+      logAuth("warn", "♻️ Refresh token already rotated, retrying...");
+      await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
+      return attemptRefresh(attempt + 1);
     }
 
     if (!response.ok) {
-      // Check if cookie was missing
       if (response.status === 401) {
         const errorData = await response.json().catch(() => ({}));
-        
         if (errorData.code === "NO_REFRESH_COOKIE" || !errorData.code) {
           logAuth("error", "🍪 Refresh cookie missing!", {
             error: errorData,
             hint: "Check DevTools > Application > Cookies",
-            backendRequirements: [
-              "SameSite=None",
-              "Secure", 
-              "HttpOnly (optional but recommended)",
-            ],
           });
-          
-          console.warn(
-            "\n%c[Auth Configuration Warning]%c\n" +
-            "Cross-site authentication is not working correctly.\n\n" +
-            "Backend cookie requirements:\n" +
-            "  • SameSite=None (required for cross-site)\n" +
-            "  • Secure (required for SameSite=None)\n" +
-            "  • CORS: Access-Control-Allow-Origin: http://localhost:3000\n" +
-            "  • CORS: Access-Control-Allow-Credentials: true\n\n" +
-            "Check DevTools > Application > Cookies to verify\n" +
-            "the refresh token cookie is being set.\n",
-            "color: orange; font-weight: bold",
-            "color: inherit"
-          );
         }
       }
       throw new Error(`Refresh failed: ${response.status}`);
     }
 
     const data = await response.json();
-    
     if (!data.accessToken) {
-      logAuth("error", "❌ No access token in refresh response", { data });
       throw new Error("No access token in refresh response");
     }
 
     logAuth("info", "✅ Token refresh successful", {
       tokenPreview: `${data.accessToken.substring(0, 20)}...`,
-      tokenLength: data.accessToken.length,
+      attempt,
     });
-
-    setAccessToken(data.accessToken);
-    processQueue(null, data.accessToken);
     return data.accessToken;
   } catch (error) {
-    logAuth("error", "❌ Token refresh failed", error);
-    clearAccessToken();
-    processQueue(error as Error, null);
-    return null;
-  } finally {
-    isRefreshing = false;
+    // Retry on network errors (TypeError from fetch), not on HTTP errors
+    if (error instanceof TypeError && attempt < MAX_REFRESH_RETRIES) {
+      logAuth("warn", `🔄 Network error during refresh, retrying (attempt ${attempt + 1})...`);
+      await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+      return attemptRefresh(attempt + 1);
+    }
+    throw error;
   }
 }
 
