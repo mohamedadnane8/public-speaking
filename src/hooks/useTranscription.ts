@@ -1,9 +1,17 @@
 import { useState, useRef, useCallback } from "react";
 
+type SessionLanguage = "EN" | "FR" | "AR";
+
+const LANGUAGE_TO_LOCALE: Record<SessionLanguage, string> = {
+  EN: "en-US",
+  FR: "fr-FR",
+  AR: "ar-SA",
+};
+
 interface UseTranscriptionReturn {
   transcript: string;
   isTranscribing: boolean;
-  startTranscription: () => void;
+  startTranscription: (language?: SessionLanguage) => void;
   stopTranscription: () => void;
   resetTranscription: () => void;
   error: string | null;
@@ -21,7 +29,7 @@ export function useTranscription(): UseTranscriptionReturn {
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
 
-  const startTranscription = useCallback(() => {
+  const startTranscription = useCallback((language?: SessionLanguage) => {
     if (!SpeechRecognitionAPI) {
       setError("Speech recognition not supported in this browser");
       return;
@@ -35,7 +43,7 @@ export function useTranscription(): UseTranscriptionReturn {
       // Configure recognition
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = "en-US";
+      recognition.lang = LANGUAGE_TO_LOCALE[language ?? "EN"];
 
       recognition.onstart = () => {
         setIsTranscribing(true);
