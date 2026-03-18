@@ -442,10 +442,10 @@ function App() {
     playToneShift();
     await startRecording();
     if (isTranscriptionSupported) {
-      startTranscription();
+      startTranscription(selectedLanguage);
     }
     setTimeout(() => speakTimer.start(), 300);
-  }, [effectiveSpeakSeconds, thinkTimer, speakTimer, playToneShift, startRecording, startTranscription]);
+  }, [effectiveSpeakSeconds, thinkTimer, speakTimer, playToneShift, startRecording, startTranscription, selectedLanguage]);
 
   const transitionToPlayback = useCallback(async () => {
     speakTimer.pause();
