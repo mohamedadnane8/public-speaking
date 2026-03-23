@@ -825,12 +825,6 @@ function App() {
     setScreen("HOME");
   };
 
-  const handleOpenHistory = useCallback(() => {
-    if (!isAuthenticated) return;
-    setIsAccountMenuOpen(false);
-    setScreen("HISTORY");
-  }, [isAuthenticated]);
-
   const loadRemoteSessions = useCallback(async () => {
     if (!isAuthenticated) return;
 
@@ -1201,9 +1195,6 @@ function App() {
         break;
     }
   };
-
-  const canAccessHistory = isAuthenticated && !isAuthSuccessPage && !isAuthErrorPage;
-  const isHistoryScreen = screen === "HISTORY";
 
   return (
     <div
