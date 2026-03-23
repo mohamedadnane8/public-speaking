@@ -59,7 +59,7 @@ export function HomeScreen({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.6 }}
-      className="min-h-[100svh] w-full px-4 pt-[max(env(safe-area-inset-top),8rem)] pb-[max(env(safe-area-inset-bottom),2rem)]"
+      className="min-h-[100svh] w-full px-4 pt-[max(env(safe-area-inset-top),5rem)] pb-[max(env(safe-area-inset-bottom),2rem)]"
     >
       <div className="mx-auto flex h-full min-h-[calc(100svh-10rem)] w-full max-w-[min(100%,28rem)] flex-col items-center justify-center space-y-9">
         {/* Mode timing display */}

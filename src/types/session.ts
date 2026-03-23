@@ -76,7 +76,7 @@ export interface Session {
   advice?: string;
 }
 
-export type Screen = 
+export type Screen =
   | "HOME"
   | "HISTORY"
   | "FEATURE_REQUEST"
@@ -85,4 +85,11 @@ export type Screen =
   | "SPEAK"
   | "PLAYBACK"
   | "REFLECT"
-  | "SCORE_SUMMARY";
+  | "SCORE_SUMMARY"
+  | "INTERVIEW_HOME"
+  | "INTERVIEW_QUESTION"
+  | "INTERVIEW_THINK"
+  | "INTERVIEW_SPEAK"
+  | "INTERVIEW_PLAYBACK"
+  | "INTERVIEW_REFLECT"
+  | "INTERVIEW_SCORE";

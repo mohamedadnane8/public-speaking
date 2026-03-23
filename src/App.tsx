@@ -32,6 +32,20 @@ import { FeatureRequestScreen } from "./screens/FeatureRequestScreen";
 import { AuthSuccessScreen } from "./screens/AuthSuccessScreen";
 import { AuthErrorScreen } from "./screens/AuthErrorScreen";
 
+// Interview screens
+import { InterviewHomeScreen } from "./screens/InterviewHomeScreen";
+import { InterviewQuestionScreen } from "./screens/InterviewQuestionScreen";
+import { InterviewThinkScreen } from "./screens/InterviewThinkScreen";
+import { InterviewSpeakScreen } from "./screens/InterviewSpeakScreen";
+import { InterviewPlaybackScreen } from "./screens/InterviewPlaybackScreen";
+
+// Components
+import { TopNavbar } from "./components/TopNavbar";
+import type { NavSection } from "./components/TopNavbar";
+
+// Interview hook
+import { useInterview } from "./hooks/useInterview";
+
 import "./App.css";
 
 // Check if recording is supported
@@ -313,6 +327,47 @@ function App() {
     resetTranscription,
   } = useTranscription();
 
+  // Interview hook
+  const interview = useInterview();
+  const [isCheckingResume, setIsCheckingResume] = useState(false);
+
+  // Interview timers
+  const interviewThinkTimer = useTimer(
+    interview.currentQuestion?.thinkingSeconds ?? 30,
+    () => transitionToInterviewSpeak(),
+    (secondsLeft) => {
+      if (secondsLeft <= 5 && secondsLeft > 0 && secondsLeft !== lastTickPlayedRef.current) {
+        playCountdownTick();
+        lastTickPlayedRef.current = secondsLeft;
+      }
+    }
+  );
+
+  const interviewSpeakTimer = useTimer(
+    interview.currentQuestion?.answeringSeconds ?? 60,
+    () => transitionToInterviewPlayback(),
+    (secondsLeft) => {
+      if (secondsLeft <= 5 && secondsLeft > 0 && secondsLeft !== lastTickPlayedRef.current) {
+        playCountdownTick();
+        lastTickPlayedRef.current = secondsLeft;
+      }
+    }
+  );
+
+  // Derived section for navbar
+  const section: NavSection = useMemo(() => {
+    if (screen.startsWith("INTERVIEW_")) return "INTERVIEWS";
+    if (screen === "HISTORY") return "HISTORY";
+    return "GENERAL_PRACTICE";
+  }, [screen]);
+
+  // Navbar visibility: hidden during active practice flows
+  const showNavbar = ![
+    "THINK", "SPEAK", "PLAYBACK", "REFLECT", "SCORE_SUMMARY",
+    "INTERVIEW_THINK", "INTERVIEW_SPEAK", "INTERVIEW_PLAYBACK",
+    "INTERVIEW_REFLECT", "INTERVIEW_SCORE",
+  ].includes(screen) && !isAuthSuccessPage && !isAuthErrorPage;
+
   // Effective timings
   const effectiveThinkSeconds = modeConfig.name === "MANUAL"
     ? manualThinkSeconds
@@ -350,6 +405,8 @@ function App() {
     return () => {
       thinkTimer.cleanup();
       speakTimer.cleanup();
+      interviewThinkTimer.cleanup();
+      interviewSpeakTimer.cleanup();
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
@@ -417,7 +474,7 @@ function App() {
 
   // Reset tick counter on screen change
   useEffect(() => {
-    if (screen === "THINK" || screen === "SPEAK") {
+    if (screen === "THINK" || screen === "SPEAK" || screen === "INTERVIEW_THINK" || screen === "INTERVIEW_SPEAK") {
       lastTickPlayedRef.current = -1;
     }
   }, [screen]);
@@ -425,8 +482,13 @@ function App() {
   // Handle app backgrounding
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.hidden && (screen === "THINK" || screen === "SPEAK")) {
-        handleCancel("APP_BACKGROUND");
+      if (document.hidden) {
+        if (screen === "THINK" || screen === "SPEAK") {
+          handleCancel("APP_BACKGROUND");
+        }
+        if (screen === "INTERVIEW_THINK" || screen === "INTERVIEW_SPEAK") {
+          handleInterviewCancel();
+        }
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -453,6 +515,129 @@ function App() {
     stopTranscription();
     setScreen("PLAYBACK");
   }, [speakTimer, stopRecording, stopTranscription]);
+
+  // Interview flow transitions
+  const transitionToInterviewSpeak = useCallback(async () => {
+    interviewThinkTimer.pause();
+    setScreen("INTERVIEW_SPEAK");
+    lastTickPlayedRef.current = -1;
+    const answeringSeconds = interview.currentQuestion?.answeringSeconds ?? 60;
+    interviewSpeakTimer.reset(answeringSeconds);
+    playToneShift();
+    await startRecording();
+    if (isTranscriptionSupported) {
+      startTranscription(selectedLanguage);
+    }
+    setTimeout(() => interviewSpeakTimer.start(), 300);
+  }, [interviewThinkTimer, interviewSpeakTimer, interview.currentQuestion, playToneShift, startRecording, startTranscription, selectedLanguage]);
+
+  const transitionToInterviewPlayback = useCallback(async () => {
+    interviewSpeakTimer.pause();
+    await stopRecording();
+    stopTranscription();
+    setScreen("INTERVIEW_PLAYBACK");
+  }, [interviewSpeakTimer, stopRecording, stopTranscription]);
+
+  const handleInterviewStart = useCallback(async () => {
+    init();
+    try {
+      const question = await interview.fetchNextQuestion();
+      if (question) {
+        setScreen("INTERVIEW_QUESTION");
+      }
+    } catch (error) {
+      console.error("Failed to fetch interview question:", error);
+      toast.error("Unable to fetch a question. Please try again.");
+    }
+  }, [init, interview]);
+
+  const handleInterviewBegin = useCallback(() => {
+    if (!interview.currentQuestion) return;
+    const thinkingSeconds = interview.currentQuestion.thinkingSeconds;
+    setScreen("INTERVIEW_THINK");
+    lastTickPlayedRef.current = -1;
+    interviewThinkTimer.reset(thinkingSeconds);
+    interviewSpeakTimer.reset(interview.currentQuestion.answeringSeconds);
+    playAmbientStart();
+    setTimeout(() => interviewThinkTimer.start(), 500);
+  }, [interview.currentQuestion, interviewThinkTimer, interviewSpeakTimer, playAmbientStart]);
+
+  const handleInterviewCancel = useCallback(() => {
+    interviewThinkTimer.pause();
+    interviewSpeakTimer.pause();
+    if (isRecording) stopRecording();
+    resetRecording();
+    resetTranscription();
+    setScreen("INTERVIEW_HOME");
+  }, [interviewThinkTimer, interviewSpeakTimer, isRecording, stopRecording, resetRecording, resetTranscription]);
+
+  const handleInterviewResumeUpload = useCallback(async (file: File) => {
+    try {
+      await interview.uploadResume(file);
+      toast.success("Resume analyzed successfully!");
+    } catch (error) {
+      // Error is already set in resumeState by the hook
+      const err = error as Error;
+      if (!err.message.includes("cooldown")) {
+        toast.error(err.message || "Failed to upload resume.");
+      }
+    }
+  }, [interview]);
+
+  // Check resume status when navigating to interview home
+  useEffect(() => {
+    if (screen !== "INTERVIEW_HOME" || !isAuthenticated) return;
+    if (interview.resumeState.isUploaded || interview.resumeState.isParsing) return;
+
+    setIsCheckingResume(true);
+    interview.checkResumeStatus().finally(() => setIsCheckingResume(false));
+  }, [screen, isAuthenticated]);
+
+  // Interview reflect/score handlers
+  const [interviewRatings, setInterviewRatings] = useState<Partial<SessionRatings>>({});
+  const [interviewNotes, setInterviewNotes] = useState("");
+
+  const handleInterviewRateChange = (criteria: keyof SessionRatings, value: RatingValue) => {
+    setInterviewRatings((prev) => ({ ...prev, [criteria]: value }));
+  };
+
+  const handleInterviewDoneRating = () => {
+    if (!hasAllRatings(interviewRatings)) return;
+    const overallScore = calculateOverallScore(interviewRatings);
+    // Store the score for display
+    setInterviewScore(overallScore);
+    setScreen("INTERVIEW_SCORE");
+  };
+
+  const [interviewScore, setInterviewScore] = useState<number | null>(null);
+
+  const handleInterviewNextQuestion = useCallback(async () => {
+    // Reset interview state for next question
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    resetRecording();
+    resetTranscription();
+    setInterviewRatings({});
+    setInterviewNotes("");
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setInterviewScore(null);
+
+    // Fetch next question
+    try {
+      const question = await interview.fetchNextQuestion();
+      if (question) {
+        setScreen("INTERVIEW_QUESTION");
+      }
+    } catch (error) {
+      console.error("Failed to fetch next question:", error);
+      toast.error("Unable to fetch next question.");
+      setScreen("INTERVIEW_HOME");
+    }
+  }, [interview, resetRecording, resetTranscription]);
 
   const handleCancel = useCallback(
     (reason: Parameters<typeof cancelSession>[0]) => {
@@ -951,6 +1136,29 @@ function App() {
     }
   }, [deleteHistorySession, isAuthenticated, savedSessionId, saveAttemptedSessionId]);
 
+  // Navbar navigation handler
+  const handleNavNavigate = useCallback((navSection: NavSection) => {
+    // If in active flow, cancel first
+    if (["THINK", "SPEAK", "PLAYBACK", "REFLECT"].includes(screen)) {
+      handleCancel("USER_BACK");
+    }
+    if (["INTERVIEW_THINK", "INTERVIEW_SPEAK", "INTERVIEW_PLAYBACK", "INTERVIEW_REFLECT"].includes(screen)) {
+      handleInterviewCancel();
+    }
+
+    switch (navSection) {
+      case "GENERAL_PRACTICE":
+        setScreen("HOME");
+        break;
+      case "INTERVIEWS":
+        setScreen("INTERVIEW_HOME");
+        break;
+      case "HISTORY":
+        if (isAuthenticated) setScreen("HISTORY");
+        break;
+    }
+  }, [screen, isAuthenticated, handleCancel, handleInterviewCancel]);
+
   // Back navigation
   const handleBack = () => {
     switch (screen) {
@@ -973,6 +1181,23 @@ function App() {
         break;
       case "SCORE_SUMMARY":
         handleNewSession();
+        break;
+      // Interview screens
+      case "INTERVIEW_QUESTION":
+        setScreen("INTERVIEW_HOME");
+        break;
+      case "INTERVIEW_THINK":
+      case "INTERVIEW_SPEAK":
+        handleInterviewCancel();
+        break;
+      case "INTERVIEW_PLAYBACK":
+        handleInterviewCancel();
+        break;
+      case "INTERVIEW_REFLECT":
+        setScreen("INTERVIEW_PLAYBACK");
+        break;
+      case "INTERVIEW_SCORE":
+        setScreen("INTERVIEW_HOME");
         break;
     }
   };
@@ -998,12 +1223,31 @@ function App() {
           },
         }}
       />
+      {/* Top Navbar */}
+      {showNavbar && (
+        <TopNavbar
+          activeSection={section}
+          onNavigate={handleNavNavigate}
+          isAuthenticated={isAuthenticated}
+          isAuthLoading={isAuthLoading}
+          user={user}
+          isAccountMenuOpen={isAccountMenuOpen}
+          onToggleAccountMenu={() => setIsAccountMenuOpen((prev) => !prev)}
+          onLogin={() => login()}
+          onLogout={() => { void handleLogout(); }}
+          onRequestFeature={handleRequestFeature}
+          accountMenuRef={accountMenuRef}
+        />
+      )}
+
       {/* Back button */}
-      {screen !== "HOME" && (
+      {screen !== "HOME" && screen !== "INTERVIEW_HOME" && (
         <button
           type="button"
           onClick={handleBack}
-          className="absolute left-4 top-4 z-50 p-2 text-[#1a1a1a]/50 transition-colors hover:text-[#1a1a1a]/80 sm:left-6 sm:top-6 md:left-8 md:top-8"
+          className={`absolute left-4 z-50 p-2 text-[#1a1a1a]/50 transition-colors hover:text-[#1a1a1a]/80 sm:left-6 md:left-8 ${
+            showNavbar ? "top-14 sm:top-14 md:top-14" : "top-4 sm:top-6 md:top-8"
+          }`}
           aria-label="Back"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -1011,120 +1255,6 @@ function App() {
           </svg>
         </button>
       )}
-
-      {/* User auth section */}
-      <div className={`absolute right-4 top-4 z-50 flex items-center gap-2 sm:right-6 sm:top-6 sm:gap-3 md:right-8 md:top-8 md:gap-4 ${
-        screen === "HOME" ? "max-w-[13rem] xl:max-w-none" : ""
-      }`}>
-        {canAccessHistory && (screen === "HOME" || screen === "SCORE_SUMMARY") && (
-          <button
-            type="button"
-            onClick={handleOpenHistory}
-            className={`hidden text-xs tracking-[0.15em] text-[#1a1a1a]/60 transition-colors uppercase hover:text-[#1a1a1a] ${
-              screen === "HOME" ? "xl:inline-block" : "sm:inline-block"
-            }`}
-            style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-          >
-            History
-          </button>
-        )}
-        {!isAuthLoading && (
-          <>
-            {isAuthenticated && user ? (
-              <div ref={accountMenuRef} className="relative">
-                <button
-                  type="button"
-                  onClick={() => setIsAccountMenuOpen((prev) => !prev)}
-                  className="flex items-center gap-2 whitespace-nowrap text-xs text-[#1a1a1a]/70 transition-colors hover:text-[#1a1a1a]"
-                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-                  aria-haspopup="menu"
-                  aria-expanded={isAccountMenuOpen}
-                >
-                  {screen === "HOME" && (
-                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#1a1a1a]/25 text-[11px] uppercase text-[#1a1a1a]/70 xl:hidden">
-                      {user.firstName.slice(0, 1)}
-                    </span>
-                  )}
-                  <span className={screen === "HOME" ? "hidden xl:inline" : "hidden sm:inline"}>
-                    {user.firstName} {user.lastName}
-                  </span>
-                  <span className={screen === "HOME" ? "hidden" : "sm:hidden"}>{user.firstName}</span>
-                  <svg
-                    className={`h-3 w-3 transition-transform ${isAccountMenuOpen ? "rotate-180" : ""}`}
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    aria-hidden="true"
-                  >
-                    <path d="M2.5 4.5 6 8l3.5-3.5" />
-                  </svg>
-                </button>
-
-                {isAccountMenuOpen && (
-                  <div
-                    className="absolute right-0 mt-2 min-w-[12rem] border border-[#1a1a1a]/20 bg-[#FDF6F0] py-1 shadow-[0_8px_24px_rgba(26,26,26,0.08)]"
-                    role="menu"
-                    aria-label="Account menu"
-                  >
-                    {canAccessHistory && (
-                      <button
-                        type="button"
-                        onClick={isHistoryScreen ? () => setIsAccountMenuOpen(false) : handleOpenHistory}
-                        className={`w-full px-4 py-2 text-left text-[11px] tracking-[0.08em] uppercase transition-colors ${
-                          isHistoryScreen
-                            ? "text-[#1a1a1a]/35 cursor-default"
-                            : "text-[#1a1a1a]/75 hover:bg-[#1a1a1a]/5 hover:text-[#1a1a1a]"
-                        }`}
-                        style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-                        role="menuitem"
-                      >
-                        History
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleRequestFeature}
-                      className="w-full px-4 py-2 text-left text-[11px] tracking-[0.08em] uppercase text-[#1a1a1a]/75 hover:bg-[#1a1a1a]/5 hover:text-[#1a1a1a] transition-colors"
-                      style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-                      role="menuitem"
-                    >
-                      Request feature
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void handleLogout();
-                      }}
-                      className="w-full px-4 py-2 text-left text-[11px] tracking-[0.08em] uppercase text-[#7A2E2E]/80 hover:bg-[#7A2E2E]/8 hover:text-[#7A2E2E] transition-colors"
-                      style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-                      role="menuitem"
-                    >
-                      Log out
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <button
-                onClick={() => login()}
-                className="text-xs tracking-[0.15em] text-[#1a1a1a]/60 hover:text-[#1a1a1a] transition-colors uppercase"
-                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-              >
-                Login
-              </button>
-            )}
-          </>
-        )}
-        <span
-          className={screen === "HOME"
-            ? "hidden"
-            : "hidden text-[10px] tracking-[0.4em] text-[#1a1a1a]/30 uppercase xl:inline"}
-          style={{ fontFamily: '"Inter", sans-serif', fontWeight: 300 }}
-        >
-          @ADNANELOGS
-        </span>
-      </div>
 
       <AnimatePresence mode="wait">
         {screen === "HISTORY" && isAuthenticated && (
@@ -1241,6 +1371,100 @@ function App() {
             onNewSession={handleNewSession}
             onReplay={handleReplay}
             onSaveAndGetAdvice={handleSaveAndGetAdvice}
+          />
+        )}
+
+        {/* Interview screens */}
+        {screen === "INTERVIEW_HOME" && (
+          <InterviewHomeScreen
+            resumeState={interview.resumeState}
+            categories={interview.categories}
+            selectedCategory={interview.selectedCategory}
+            selectedDifficulty={interview.selectedDifficulty}
+            selectedLanguage={selectedLanguage}
+            isFetchingQuestion={interview.isFetchingQuestion}
+            isCheckingResume={isCheckingResume}
+            onFileSelected={handleInterviewResumeUpload}
+            onCategoryChange={interview.setSelectedCategory}
+            onDifficultyChange={interview.setSelectedDifficulty}
+            onLanguageChange={handleLanguageChange}
+            onStart={handleInterviewStart}
+          />
+        )}
+
+        {screen === "INTERVIEW_QUESTION" && interview.currentQuestion && (
+          <InterviewQuestionScreen
+            question={interview.currentQuestion}
+            onBegin={handleInterviewBegin}
+          />
+        )}
+
+        {screen === "INTERVIEW_THINK" && interview.currentQuestion && (
+          <InterviewThinkScreen
+            question={interview.currentQuestion.question}
+            seconds={interviewThinkTimer.seconds}
+            totalSeconds={interview.currentQuestion.thinkingSeconds}
+            onSkip={transitionToInterviewSpeak}
+          />
+        )}
+
+        {screen === "INTERVIEW_SPEAK" && interview.currentQuestion && (
+          <InterviewSpeakScreen
+            question={interview.currentQuestion.question}
+            seconds={interviewSpeakTimer.seconds}
+            totalSeconds={interview.currentQuestion.answeringSeconds}
+            isRecording={isRecording}
+            audio={audio}
+            isTranscribing={isTranscribing}
+          />
+        )}
+
+        {screen === "INTERVIEW_PLAYBACK" && interview.currentQuestion && (
+          <InterviewPlaybackScreen
+            question={interview.currentQuestion.question}
+            category={interview.currentQuestion.category}
+            audio={audio}
+            transcript={transcript}
+            isPlaying={isPlaying}
+            currentTime={currentTime}
+            duration={duration}
+            onPlayToggle={handlePlayToggle}
+            onSeek={handleSeek}
+            onSkipBackward={handleSkipBackward}
+            onSkipForward={handleSkipForward}
+            onContinue={() => {
+              if (isPlaying) {
+                audioRef.current?.pause();
+                setIsPlaying(false);
+              }
+              setScreen("INTERVIEW_REFLECT");
+            }}
+          />
+        )}
+
+        {screen === "INTERVIEW_REFLECT" && (
+          <ReflectScreen
+            ratings={interviewRatings}
+            notes={interviewNotes}
+            canComplete={hasAllRatings(interviewRatings)}
+            onRateChange={handleInterviewRateChange}
+            onNotesChange={setInterviewNotes}
+            onDone={handleInterviewDoneRating}
+          />
+        )}
+
+        {screen === "INTERVIEW_SCORE" && interviewScore !== null && (
+          <ScoreSummaryScreen
+            overallScore={interviewScore}
+            audio={audio}
+            advice={null}
+            isSaving={false}
+            isSaved={false}
+            isAuthenticated={isAuthenticated}
+            user={user}
+            onNewSession={handleInterviewNextQuestion}
+            onReplay={handleReplay}
+            onSaveAndGetAdvice={() => {}}
           />
         )}
 

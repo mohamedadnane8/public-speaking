@@ -1,0 +1,130 @@
+import { motion } from "framer-motion";
+import { CircularProgress } from "@/components/CircularProgress";
+import type { SessionAudio } from "@/types/session";
+
+interface InterviewSpeakScreenProps {
+  question: string;
+  seconds: number;
+  totalSeconds: number;
+  isRecording: boolean;
+  audio: SessionAudio | null | undefined;
+  isTranscribing: boolean;
+}
+
+export function InterviewSpeakScreen({
+  question,
+  seconds,
+  totalSeconds,
+  isRecording,
+  audio,
+  isTranscribing,
+}: InterviewSpeakScreenProps) {
+  const progress = 1 - seconds / totalSeconds;
+  const isLowTime = seconds <= 5;
+
+  const recordingLabel = isRecording
+    ? "Recording"
+    : audio?.available === false
+      ? "No recording"
+      : "Starting...";
+
+  const transcribingLabel = isTranscribing
+    ? "Transcribing"
+    : "Transcription off";
+
+  return (
+    <motion.div
+      key="interview-speak"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.5 }}
+      className="min-h-screen w-full flex flex-col items-center justify-center px-4"
+    >
+      <div className="flex flex-col items-center space-y-8 w-full max-w-[min(100%,32rem)]">
+        {/* Phase indicator */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="h-6"
+        >
+          <span
+            className="text-sm tracking-[0.2em] text-[#1a1a1a]/80"
+            style={{
+              fontFamily: '"Cormorant Garamond", Georgia, serif',
+              fontWeight: 400,
+            }}
+          >
+            Answer.
+          </span>
+        </motion.div>
+
+        {/* Question with circular timer */}
+        <div className="min-h-[320px] sm:min-h-[360px] md:min-h-[400px] w-full flex flex-col items-center justify-center">
+          <CircularProgress
+            progress={progress}
+            seconds={seconds}
+            isLowTime={isLowTime}
+            size="md"
+          >
+            <div
+              className="text-base sm:text-lg md:text-xl leading-relaxed tracking-[0.02em] text-[#1a1a1a] px-6 text-center max-w-[16rem] sm:max-w-[18rem]"
+              style={{
+                fontFamily: '"Cormorant Garamond", Georgia, serif',
+                fontWeight: 400,
+              }}
+            >
+              {question}
+            </div>
+
+            {/* Recording indicator */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center gap-2 mt-3"
+            >
+              <motion.div
+                animate={{ scale: [1, 1.2, 1], opacity: [1, 0.6, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className={`w-2 h-2 rounded-full ${
+                  isRecording ? "bg-[#7A2E2E]" : "bg-[#1a1a1a]/30"
+                }`}
+              />
+              <span
+                className="text-[10px] tracking-[0.2em] uppercase text-[#1a1a1a]/50"
+                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+              >
+                {recordingLabel}
+              </span>
+            </motion.div>
+
+            {/* Transcription indicator */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center gap-2 mt-1"
+            >
+              <motion.div
+                animate={
+                  isTranscribing
+                    ? { scale: [1, 1.2, 1], opacity: [1, 0.6, 1] }
+                    : {}
+                }
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className={`w-1.5 h-1.5 rounded-full ${
+                  isTranscribing ? "bg-[#1a1a1a]/60" : "bg-[#1a1a1a]/20"
+                }`}
+              />
+              <span
+                className="text-[9px] tracking-[0.15em] uppercase text-[#1a1a1a]/40"
+                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+              >
+                {transcribingLabel}
+              </span>
+            </motion.div>
+          </CircularProgress>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
