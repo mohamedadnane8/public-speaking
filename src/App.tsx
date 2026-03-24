@@ -215,16 +215,22 @@ function App() {
   const urlParams = new URLSearchParams(window.location.search);
   const authError = urlParams.get("error");
   const authSuccess = urlParams.get("auth") === "success";
-  
-  // Determine if we're on an auth callback page
-  const isAuthSuccessPage = authSuccess || window.location.pathname === "/auth/success";
-  const isAuthErrorPage = authError !== null || window.location.pathname === "/auth/error";
-  
+
+  // Determine if we're on an auth callback page (stateful so clearing works)
+  const [isAuthSuccessPage, setIsAuthSuccessPage] = useState(
+    () => authSuccess || window.location.pathname === "/auth/success"
+  );
+  const [isAuthErrorPage, setIsAuthErrorPage] = useState(
+    () => authError !== null || window.location.pathname === "/auth/error"
+  );
+
   // Handle clearing URL parameters after auth
   const clearAuthParams = useCallback(() => {
     // Remove auth query params from URL without reloading
     const newUrl = window.location.pathname.replace(/\/auth\/(success|error)/, "") || "/";
     window.history.replaceState({}, document.title, newUrl);
+    setIsAuthSuccessPage(false);
+    setIsAuthErrorPage(false);
   }, []);
 
   // Check for pending session after OAuth redirect
