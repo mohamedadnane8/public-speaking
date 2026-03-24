@@ -5,7 +5,6 @@ import type { Session } from "@/types/session";
 interface HistoryScreenProps {
   sessions: Session[];
   isAuthenticated: boolean;
-  onBack: () => void;
   onDeleteSession: (id: string) => void;
   onReplayAudio: (session: Session) => void;
 }
@@ -41,7 +40,6 @@ function getSessionDate(session: Session): number {
 export function HistoryScreen({
   sessions,
   isAuthenticated,
-  onBack,
   onDeleteSession,
   onReplayAudio,
 }: HistoryScreenProps) {
@@ -133,15 +131,6 @@ export function HistoryScreen({
                 : "Local history is available. Sign in to sync sessions across devices."}
             </p>
           </div>
-
-          <button
-            type="button"
-            onClick={onBack}
-            className="w-fit border border-[#1a1a1a]/30 px-5 py-2 text-[10px] uppercase tracking-[0.2em] text-[#1a1a1a]/70 transition-colors hover:border-[#1a1a1a]/60 hover:text-[#1a1a1a]"
-            style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-          >
-            Back Home
-          </button>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Toaster, toast } from "sonner";
 import { useTimer } from "./hooks/useTimer";
 import { useSoundSystem } from "./hooks/useSoundSystem";
@@ -7,13 +7,14 @@ import { useSession } from "./hooks/useSession";
 import { useTranscription, isTranscriptionSupported } from "./hooks/useTranscription";
 import { useAuth } from "./hooks/useAuth";
 import { apiClient } from "./lib/apiClient";
-import { getModeConfig, getNextMode } from "./lib/modes";
+import { getModeConfig, getNextMode, getPrevMode } from "./lib/modes";
 import { fetchRandomWordFromBackend } from "./lib/words";
-import { calculateOverallScore, hasAllRatings } from "./lib/scoring";
+import { calculateOverallScore, calculateInterviewScore, hasAllRatings, hasAllInterviewRatings } from "./lib/scoring";
 import type {
   Screen,
   Session,
   SessionRatings,
+  InterviewRatings,
   RatingValue,
   SessionLanguage,
   SessionDifficulty,
@@ -38,6 +39,7 @@ import { InterviewQuestionScreen } from "./screens/InterviewQuestionScreen";
 import { InterviewThinkScreen } from "./screens/InterviewThinkScreen";
 import { InterviewSpeakScreen } from "./screens/InterviewSpeakScreen";
 import { InterviewPlaybackScreen } from "./screens/InterviewPlaybackScreen";
+import { InterviewReflectScreen } from "./screens/InterviewReflectScreen";
 
 // Components
 import { TopNavbar } from "./components/TopNavbar";
@@ -45,6 +47,7 @@ import type { NavSection } from "./components/TopNavbar";
 
 // Interview hook
 import { useInterview } from "./hooks/useInterview";
+import { useTranscriptionPolling } from "./hooks/useTranscriptionPolling";
 
 import "./App.css";
 
@@ -278,13 +281,15 @@ function App() {
   // Save & advice state
   const [isSaving, setIsSaving] = useState(false);
   const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
+  const [savedServerSessionId, setSavedServerSessionId] = useState<string | null>(null);
+  const [savedSpeechAnalysis, setSavedSpeechAnalysis] = useState<unknown>(null);
   const [saveAttemptedSessionId, setSaveAttemptedSessionId] = useState<string | null>(null);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const [remoteSessions, setRemoteSessions] = useState<Session[] | null>(null);
   
   // Auth hook
-  const { user, isAuthenticated, isLoading: isAuthLoading, login, logout } = useAuth();
+  const { user, isAuthenticated, isLoading: isAuthLoading, isLocalhost: isLocalhostEnv, login, devLogin, logout } = useAuth();
 
   // Hooks
   const {
@@ -331,6 +336,13 @@ function App() {
   const interview = useInterview();
   const [isCheckingResume, setIsCheckingResume] = useState(false);
 
+  // Transcription polling — enabled when session is saved and on score summary screen
+  const shouldPollTranscription = !!(
+    savedServerSessionId &&
+    (screen === "SCORE_SUMMARY" || screen === "INTERVIEW_SCORE")
+  );
+  const transcriptionPolling = useTranscriptionPolling(savedServerSessionId, shouldPollTranscription);
+
   // Interview timers
   const interviewThinkTimer = useTimer(
     interview.currentQuestion?.thinkingSeconds ?? 30,
@@ -358,15 +370,12 @@ function App() {
   const section: NavSection = useMemo(() => {
     if (screen.startsWith("INTERVIEW_")) return "INTERVIEWS";
     if (screen === "HISTORY") return "HISTORY";
+    if (screen === "FEATURE_REQUEST") return "FEATURE_REQUEST";
     return "GENERAL_PRACTICE";
   }, [screen]);
 
-  // Navbar visibility: hidden during active practice flows
-  const showNavbar = ![
-    "THINK", "SPEAK", "PLAYBACK", "REFLECT", "SCORE_SUMMARY",
-    "INTERVIEW_THINK", "INTERVIEW_SPEAK", "INTERVIEW_PLAYBACK",
-    "INTERVIEW_REFLECT", "INTERVIEW_SCORE",
-  ].includes(screen) && !isAuthSuccessPage && !isAuthErrorPage;
+  // Navbar visibility: always visible except auth callback pages
+  const showNavbar = !isAuthSuccessPage && !isAuthErrorPage;
 
   // Effective timings
   const effectiveThinkSeconds = modeConfig.name === "MANUAL"
@@ -521,8 +530,7 @@ function App() {
     interviewThinkTimer.pause();
     setScreen("INTERVIEW_SPEAK");
     lastTickPlayedRef.current = -1;
-    const answeringSeconds = interview.currentQuestion?.answeringSeconds ?? 60;
-    interviewSpeakTimer.reset(answeringSeconds);
+    interviewSpeakTimer.reset(interviewAnswerSeconds);
     playToneShift();
     await startRecording();
     if (isTranscriptionSupported) {
@@ -538,26 +546,52 @@ function App() {
     setScreen("INTERVIEW_PLAYBACK");
   }, [interviewSpeakTimer, stopRecording, stopTranscription]);
 
+  // Interview question reveal state
+  const [interviewSpinKey, setInterviewSpinKey] = useState(0);
+  const [isInterviewRevealing, setIsInterviewRevealing] = useState(false);
+  const [showInterviewActions, setShowInterviewActions] = useState(false);
+
+  const handleInterviewRevealComplete = useCallback(() => {
+    setIsInterviewRevealing(false);
+    playThum();
+    setTimeout(() => setShowInterviewActions(true), 400);
+  }, [playThum]);
+
   const handleInterviewStart = useCallback(async () => {
     init();
     try {
       const question = await interview.fetchNextQuestion();
       if (question) {
+        setInterviewSpinKey((k) => k + 1);
+        setIsInterviewRevealing(true);
+        setShowInterviewActions(false);
         setScreen("INTERVIEW_QUESTION");
+        playWhirr();
+        let tickCount = 0;
+        const tickInterval = setInterval(() => {
+          playTick();
+          tickCount++;
+          if (tickCount > 15) clearInterval(tickInterval);
+        }, 80);
       }
     } catch (error) {
       console.error("Failed to fetch interview question:", error);
       toast.error("Unable to fetch a question. Please try again.");
     }
-  }, [init, interview]);
+  }, [init, interview, playWhirr, playTick]);
 
-  const handleInterviewBegin = useCallback(() => {
+  // Track user-adjusted times for the current interview question
+  const [interviewThinkSeconds, setInterviewThinkSeconds] = useState(30);
+  const [interviewAnswerSeconds, setInterviewAnswerSeconds] = useState(60);
+
+  const handleInterviewBegin = useCallback((thinkSeconds: number, answerSeconds: number) => {
     if (!interview.currentQuestion) return;
-    const thinkingSeconds = interview.currentQuestion.thinkingSeconds;
+    setInterviewThinkSeconds(thinkSeconds);
+    setInterviewAnswerSeconds(answerSeconds);
     setScreen("INTERVIEW_THINK");
     lastTickPlayedRef.current = -1;
-    interviewThinkTimer.reset(thinkingSeconds);
-    interviewSpeakTimer.reset(interview.currentQuestion.answeringSeconds);
+    interviewThinkTimer.reset(thinkSeconds);
+    interviewSpeakTimer.reset(answerSeconds);
     playAmbientStart();
     setTimeout(() => interviewThinkTimer.start(), 500);
   }, [interview.currentQuestion, interviewThinkTimer, interviewSpeakTimer, playAmbientStart]);
@@ -593,18 +627,17 @@ function App() {
     interview.checkResumeStatus().finally(() => setIsCheckingResume(false));
   }, [screen, isAuthenticated]);
 
-  // Interview reflect/score handlers
-  const [interviewRatings, setInterviewRatings] = useState<Partial<SessionRatings>>({});
+  // Interview reflect/score handlers (STAR framework)
+  const [interviewRatings, setInterviewRatings] = useState<Partial<InterviewRatings>>({});
   const [interviewNotes, setInterviewNotes] = useState("");
 
-  const handleInterviewRateChange = (criteria: keyof SessionRatings, value: RatingValue) => {
+  const handleInterviewRateChange = (criteria: keyof InterviewRatings, value: RatingValue) => {
     setInterviewRatings((prev) => ({ ...prev, [criteria]: value }));
   };
 
   const handleInterviewDoneRating = () => {
-    if (!hasAllRatings(interviewRatings)) return;
-    const overallScore = calculateOverallScore(interviewRatings);
-    // Store the score for display
+    if (!hasAllInterviewRatings(interviewRatings)) return;
+    const overallScore = calculateInterviewScore(interviewRatings);
     setInterviewScore(overallScore);
     setScreen("INTERVIEW_SCORE");
   };
@@ -625,19 +658,54 @@ function App() {
     setCurrentTime(0);
     setDuration(0);
     setInterviewScore(null);
+    setSavedServerSessionId(null);
+    setSavedSpeechAnalysis(null);
 
-    // Fetch next question
+    // Fetch next question with reveal animation
+    init();
     try {
       const question = await interview.fetchNextQuestion();
       if (question) {
+        setInterviewSpinKey((k) => k + 1);
+        setIsInterviewRevealing(true);
+        setShowInterviewActions(false);
         setScreen("INTERVIEW_QUESTION");
+        playWhirr();
+        let tickCount = 0;
+        const tickInterval = setInterval(() => {
+          playTick();
+          tickCount++;
+          if (tickCount > 15) clearInterval(tickInterval);
+        }, 80);
       }
     } catch (error) {
       console.error("Failed to fetch next question:", error);
       toast.error("Unable to fetch next question.");
       setScreen("INTERVIEW_HOME");
     }
-  }, [interview, resetRecording, resetTranscription]);
+  }, [interview, resetRecording, resetTranscription, init, playWhirr, playTick]);
+
+  const handleInterviewSpinAgain = useCallback(async () => {
+    init();
+    try {
+      const question = await interview.fetchNextQuestion();
+      if (question) {
+        setInterviewSpinKey((k) => k + 1);
+        setIsInterviewRevealing(true);
+        setShowInterviewActions(false);
+        playWhirr();
+        let tickCount = 0;
+        const tickInterval = setInterval(() => {
+          playTick();
+          tickCount++;
+          if (tickCount > 15) clearInterval(tickInterval);
+        }, 80);
+      }
+    } catch (error) {
+      console.error("Failed to fetch question:", error);
+      toast.error("Unable to fetch a question. Please try again.");
+    }
+  }, [init, interview, playWhirr, playTick]);
 
   const handleCancel = useCallback(
     (reason: Parameters<typeof cancelSession>[0]) => {
@@ -668,11 +736,14 @@ function App() {
     setDuration(0);
     setSavedSessionId(null);
     setSaveAttemptedSessionId(null);
+    setSavedServerSessionId(null);
+    setSavedSpeechAnalysis(null);
   };
 
   // Home screen handlers
-  const handleModeCycle = () => {
-    setModeConfig(getModeConfig(getNextMode(modeConfig.name)));
+  const handleModeCycle = (direction: 1 | -1 = 1) => {
+    const next = direction === 1 ? getNextMode(modeConfig.name) : getPrevMode(modeConfig.name);
+    setModeConfig(getModeConfig(next));
   };
 
   const handleLanguageChange = (language: SessionLanguage) => {
@@ -863,21 +934,12 @@ function App() {
     void loadRemoteSessions();
   }, [screen, isAuthenticated, loadRemoteSessions]);
 
-  useEffect(() => {
-    if (screen === "HISTORY" && !isAuthenticated) {
-      setScreen("HOME");
-    }
-  }, [screen, isAuthenticated]);
 
   const historySessions = useMemo(() => {
     if (!isAuthenticated) return sessions;
     return remoteSessions ?? [];
   }, [isAuthenticated, remoteSessions, sessions]);
 
-  const handleRequestFeature = useCallback(() => {
-    setIsAccountMenuOpen(false);
-    setScreen("FEATURE_REQUEST");
-  }, []);
 
   const handleLogout = useCallback(async () => {
     try {
@@ -972,16 +1034,20 @@ function App() {
         }
       }
 
+      // Omit client-side transcript so server does AssemblyAI transcription
+      const { transcript: _clientTranscript, ...sessionWithoutTranscript } = uploadReadySession;
+      const saveBody = sessionWithoutTranscript;
+
       let saveRes = await apiClient("/api/sessions", {
         method: "POST",
-        body: JSON.stringify(uploadReadySession),
+        body: JSON.stringify(saveBody),
       });
 
       // Compatibility fallback for deployments that only expose /api/sessions/record
       if (saveRes.status === 404 || saveRes.status === 405) {
         saveRes = await apiClient("/api/sessions/record", {
           method: "POST",
-          body: JSON.stringify(uploadReadySession),
+          body: JSON.stringify(saveBody),
         });
       }
 
@@ -999,6 +1065,11 @@ function App() {
       const persistedSession: Session = advice
         ? { ...uploadReadySession, advice }
         : uploadReadySession;
+
+      // Track server session ID for transcription polling + AI analysis
+      const serverSessionId = (saveData as { id?: string })?.id ?? sessionToSave.id;
+      setSavedServerSessionId(serverSessionId);
+      setSavedSpeechAnalysis((saveData as { speechAnalysis?: unknown })?.speechAnalysis ?? null);
 
       restoreSession(persistedSession);
       setSavedSessionId(sessionToSave.id);
@@ -1148,7 +1219,10 @@ function App() {
         setScreen("INTERVIEW_HOME");
         break;
       case "HISTORY":
-        if (isAuthenticated) setScreen("HISTORY");
+        setScreen("HISTORY");
+        break;
+      case "FEATURE_REQUEST":
+        setScreen("FEATURE_REQUEST");
         break;
     }
   }, [screen, isAuthenticated, handleCancel, handleInterviewCancel]);
@@ -1221,24 +1295,23 @@ function App() {
           onNavigate={handleNavNavigate}
           isAuthenticated={isAuthenticated}
           isAuthLoading={isAuthLoading}
+          isLocalhost={isLocalhostEnv}
           user={user}
           isAccountMenuOpen={isAccountMenuOpen}
           onToggleAccountMenu={() => setIsAccountMenuOpen((prev) => !prev)}
           onLogin={() => login()}
+          onDevLogin={() => { void devLogin(); }}
           onLogout={() => { void handleLogout(); }}
-          onRequestFeature={handleRequestFeature}
           accountMenuRef={accountMenuRef}
         />
       )}
 
       {/* Back button */}
-      {screen !== "HOME" && screen !== "INTERVIEW_HOME" && (
+      {screen !== "HOME" && screen !== "INTERVIEW_HOME" && screen !== "HISTORY" && screen !== "FEATURE_REQUEST" && (
         <button
           type="button"
           onClick={handleBack}
-          className={`absolute left-4 z-50 p-2 text-[#1a1a1a]/50 transition-colors hover:text-[#1a1a1a]/80 sm:left-6 md:left-8 ${
-            showNavbar ? "top-14 sm:top-14 md:top-14" : "top-4 sm:top-6 md:top-8"
-          }`}
+          className="absolute left-4 top-14 z-50 p-2 text-[#1a1a1a]/50 transition-colors hover:text-[#1a1a1a]/80 sm:left-6 md:left-8"
           aria-label="Back"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -1247,15 +1320,47 @@ function App() {
         </button>
       )}
 
-      <AnimatePresence mode="wait">
-        {screen === "HISTORY" && isAuthenticated && (
-          <HistoryScreen
-            sessions={historySessions}
-            isAuthenticated={isAuthenticated}
-            onBack={() => setScreen("HOME")}
-            onDeleteSession={handleDeleteHistorySession}
-            onReplayAudio={handleReplayHistoryAudio}
-          />
+      <AnimatePresence>
+        {screen === "HISTORY" && (
+          isAuthenticated ? (
+            <HistoryScreen
+              sessions={historySessions}
+              isAuthenticated={isAuthenticated}
+              onDeleteSession={handleDeleteHistorySession}
+              onReplayAudio={handleReplayHistoryAudio}
+            />
+          ) : (
+            <motion.div
+              key="history-login"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.45 }}
+              className="min-h-screen w-full px-4 pt-16 flex flex-col items-center justify-center"
+            >
+              <div className="flex flex-col items-center gap-6 text-center">
+                <h1
+                  className="text-4xl text-[#1a1a1a]"
+                  style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}
+                >
+                  History
+                </h1>
+                <p
+                  className="text-sm text-[#1a1a1a]/55 max-w-sm"
+                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                >
+                  Sign in to view your practice sessions, scores, and reflections.
+                </p>
+                <button
+                  onClick={() => login()}
+                  className="px-8 py-3 border border-[#1a1a1a]/60 text-[#1a1a1a] text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:border-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-[#FDF6F0]"
+                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                >
+                  Login
+                </button>
+              </div>
+            </motion.div>
+          )
         )}
 
         {screen === "HOME" && (
@@ -1278,7 +1383,40 @@ function App() {
         )}
 
         {screen === "FEATURE_REQUEST" && (
-          <FeatureRequestScreen />
+          isAuthenticated ? (
+            <FeatureRequestScreen isAuthenticated={isAuthenticated} />
+          ) : (
+            <motion.div
+              key="feature-request-login"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.45 }}
+              className="min-h-screen w-full px-4 pt-16 flex flex-col items-center justify-center"
+            >
+              <div className="flex flex-col items-center gap-6 text-center">
+                <h1
+                  className="text-4xl text-[#1a1a1a]"
+                  style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}
+                >
+                  Request Feature
+                </h1>
+                <p
+                  className="text-sm text-[#1a1a1a]/55 max-w-sm"
+                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                >
+                  Sign in to submit feature requests and view your previous submissions.
+                </p>
+                <button
+                  onClick={() => login()}
+                  className="px-8 py-3 border border-[#1a1a1a]/60 text-[#1a1a1a] text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:border-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-[#FDF6F0]"
+                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                >
+                  Login
+                </button>
+              </div>
+            </motion.div>
+          )
         )}
 
         {screen === "WORD_REVEAL" && (
@@ -1359,6 +1497,11 @@ function App() {
             isSaved={savedSessionId === session.id}
             isAuthenticated={isAuthenticated}
             user={user}
+            sessionId={savedServerSessionId}
+            sessionType="General"
+            speechAnalysis={savedSpeechAnalysis}
+            transcriptionStatus={transcriptionPolling.transcriptionStatus}
+            isPollingTranscription={transcriptionPolling.isPolling}
             onNewSession={handleNewSession}
             onReplay={handleReplay}
             onSaveAndGetAdvice={handleSaveAndGetAdvice}
@@ -1367,26 +1510,67 @@ function App() {
 
         {/* Interview screens */}
         {screen === "INTERVIEW_HOME" && (
-          <InterviewHomeScreen
-            resumeState={interview.resumeState}
-            categories={interview.categories}
-            selectedCategory={interview.selectedCategory}
-            selectedDifficulty={interview.selectedDifficulty}
-            selectedLanguage={selectedLanguage}
-            isFetchingQuestion={interview.isFetchingQuestion}
-            isCheckingResume={isCheckingResume}
-            onFileSelected={handleInterviewResumeUpload}
-            onCategoryChange={interview.setSelectedCategory}
-            onDifficultyChange={interview.setSelectedDifficulty}
-            onLanguageChange={handleLanguageChange}
-            onStart={handleInterviewStart}
-          />
+          isAuthenticated ? (
+            <InterviewHomeScreen
+              resumeState={interview.resumeState}
+              categories={interview.categories}
+              selectedCategory={interview.selectedCategory}
+              selectedDifficulty={interview.selectedDifficulty}
+              isFetchingQuestion={interview.isFetchingQuestion}
+              isCheckingResume={isCheckingResume}
+              isRecordingSupported={isRecordingSupported}
+              hasRecordingPermission={hasRecordingPermission}
+              isRequestingPermission={isRequestingPermission}
+              onFileSelected={handleInterviewResumeUpload}
+              onCategoryChange={interview.setSelectedCategory}
+              onDifficultyChange={interview.setSelectedDifficulty}
+              onRequestPermission={handleRequestPermission}
+              onStart={handleInterviewStart}
+            />
+          ) : (
+            <motion.div
+              key="interview-login"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.45 }}
+              className="min-h-screen w-full px-4 pt-16 flex flex-col items-center justify-center"
+            >
+              <div className="flex flex-col items-center gap-6 text-center">
+                <h1
+                  className="text-4xl text-[#1a1a1a]"
+                  style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}
+                >
+                  Interview Training
+                </h1>
+                <p
+                  className="text-sm text-[#1a1a1a]/55 max-w-sm"
+                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                >
+                  Sign in to upload your resume and practice interview questions.
+                </p>
+                <button
+                  onClick={() => login()}
+                  className="px-8 py-3 border border-[#1a1a1a]/60 text-[#1a1a1a] text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:border-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-[#FDF6F0]"
+                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                >
+                  Login
+                </button>
+              </div>
+            </motion.div>
+          )
         )}
 
         {screen === "INTERVIEW_QUESTION" && interview.currentQuestion && (
           <InterviewQuestionScreen
             question={interview.currentQuestion}
+            spinKey={interviewSpinKey}
+            isRevealing={isInterviewRevealing}
+            showActions={showInterviewActions}
+            onRevealComplete={handleInterviewRevealComplete}
+            onWordSettle={playTock}
             onBegin={handleInterviewBegin}
+            onSpinAgain={handleInterviewSpinAgain}
           />
         )}
 
@@ -1394,7 +1578,7 @@ function App() {
           <InterviewThinkScreen
             question={interview.currentQuestion.question}
             seconds={interviewThinkTimer.seconds}
-            totalSeconds={interview.currentQuestion.thinkingSeconds}
+            totalSeconds={interviewThinkSeconds}
             onSkip={transitionToInterviewSpeak}
           />
         )}
@@ -1403,7 +1587,7 @@ function App() {
           <InterviewSpeakScreen
             question={interview.currentQuestion.question}
             seconds={interviewSpeakTimer.seconds}
-            totalSeconds={interview.currentQuestion.answeringSeconds}
+            totalSeconds={interviewAnswerSeconds}
             isRecording={isRecording}
             audio={audio}
             isTranscribing={isTranscribing}
@@ -1434,10 +1618,10 @@ function App() {
         )}
 
         {screen === "INTERVIEW_REFLECT" && (
-          <ReflectScreen
+          <InterviewReflectScreen
             ratings={interviewRatings}
             notes={interviewNotes}
-            canComplete={hasAllRatings(interviewRatings)}
+            canComplete={hasAllInterviewRatings(interviewRatings)}
             onRateChange={handleInterviewRateChange}
             onNotesChange={setInterviewNotes}
             onDone={handleInterviewDoneRating}
@@ -1450,9 +1634,14 @@ function App() {
             audio={audio}
             advice={null}
             isSaving={false}
-            isSaved={false}
+            isSaved={!!savedServerSessionId}
             isAuthenticated={isAuthenticated}
             user={user}
+            sessionId={savedServerSessionId}
+            sessionType="Interview"
+            speechAnalysis={savedSpeechAnalysis}
+            transcriptionStatus={transcriptionPolling.transcriptionStatus}
+            isPollingTranscription={transcriptionPolling.isPolling}
             onNewSession={handleInterviewNextQuestion}
             onReplay={handleReplay}
             onSaveAndGetAdvice={() => {}}

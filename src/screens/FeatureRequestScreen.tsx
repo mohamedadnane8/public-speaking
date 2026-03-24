@@ -25,7 +25,11 @@ function formatDate(value: string): string {
   });
 }
 
-export function FeatureRequestScreen() {
+interface FeatureRequestScreenProps {
+  isAuthenticated: boolean;
+}
+
+export function FeatureRequestScreen({ isAuthenticated }: FeatureRequestScreenProps) {
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingRequests, setIsLoadingRequests] = useState(true);
@@ -55,8 +59,12 @@ export function FeatureRequestScreen() {
   }, []);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setIsLoadingRequests(false);
+      return;
+    }
     void loadRequests();
-  }, [loadRequests]);
+  }, [loadRequests, isAuthenticated]);
 
   const handleSubmit = useCallback(async () => {
     const trimmedMessage = message.trim();

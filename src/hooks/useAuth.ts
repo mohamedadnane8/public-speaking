@@ -20,12 +20,18 @@ export interface User {
   lastLoginAt?: string;
 }
 
+const isLocalhost =
+  typeof window !== "undefined" &&
+  ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+
 interface UseAuthReturn {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   error: string | null;
+  isLocalhost: boolean;
   login: (redirectPath?: string) => void;
+  devLogin: (email?: string, firstName?: string, lastName?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   /** Access token for debugging (remove in production) */
@@ -126,6 +132,52 @@ export function useAuth(): UseAuthReturn {
   }, []);
 
   /**
+   * Dev-only login via POST /api/auth/dev/login
+   * Skips OAuth, creates/finds a dev user on the backend
+   */
+  const devLogin = useCallback(async (
+    email?: string,
+    firstName?: string,
+    lastName?: string,
+  ) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const body: Record<string, string> = {};
+      if (email) body.email = email;
+      if (firstName) body.firstName = firstName;
+      if (lastName) body.lastName = lastName;
+
+      // Use raw fetch — apiClient would try token refresh and fail
+      const response = await fetch(`${API_BASE_URL}/api/auth/dev/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Dev login failed (${response.status})`);
+      }
+
+      // After dev login, the backend sets refresh cookie + may return access token.
+      // Re-initialize auth to pick up the new session.
+      const result = await initializeAuth();
+      if (result.success && result.user) {
+        setUser(result.user as User);
+      } else {
+        throw new Error("Dev login succeeded but failed to initialize session");
+      }
+    } catch (err) {
+      console.error("Dev login error:", err);
+      setError((err as Error).message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  /**
    * Logout - clears local token and calls backend
    */
   const logout = useCallback(async () => {
@@ -144,7 +196,9 @@ export function useAuth(): UseAuthReturn {
     isLoading,
     isAuthenticated: !!user,
     error,
+    isLocalhost,
     login,
+    devLogin,
     logout,
     refreshUser,
     _accessToken: getAccessToken(), // For debugging

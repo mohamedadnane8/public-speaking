@@ -20,9 +20,11 @@ export function useTimer(
   const isRunningRef = useRef(false);
   const secondsRef = useRef(seconds);
   const onTickRef = useRef(onTick);
-  
+
   onTickRef.current = onTick;
-  secondsRef.current = seconds;
+  // NOTE: Do NOT sync secondsRef from seconds state here.
+  // reset() writes to secondsRef directly, and a re-render between
+  // reset() and start() would overwrite it with the stale state value.
 
   const start = useCallback(() => {
     const current = secondsRef.current;
@@ -33,6 +35,7 @@ export function useTimer(
       intervalRef.current = setInterval(() => {
         setSeconds((prev) => {
           const next = prev - 1;
+          secondsRef.current = next;
           if (next >= 0) {
             onTickRef.current?.(next);
           }
