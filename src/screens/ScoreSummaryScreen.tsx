@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
-import type { SessionAudio } from "@/types/session";
+import type { SessionAudio, SessionType, TranscriptionStatus } from "@/types/session";
 import type { User } from "@/hooks/useAuth";
+import { AiAnalysis } from "@/components/AiAnalysis";
 
 interface ScoreSummaryScreenProps {
   overallScore: number;
@@ -10,6 +11,12 @@ interface ScoreSummaryScreenProps {
   isSaved?: boolean;
   isAuthenticated?: boolean;
   user?: User | null;
+  /** AI analysis props */
+  sessionId?: string | null;
+  sessionType?: SessionType;
+  speechAnalysis?: unknown;
+  transcriptionStatus?: TranscriptionStatus | null;
+  isPollingTranscription?: boolean;
   onNewSession: () => void;
   onReplay: () => void;
   onSaveAndGetAdvice: () => void;
@@ -23,6 +30,11 @@ export function ScoreSummaryScreen({
   isSaved = false,
   isAuthenticated = false,
   user = null,
+  sessionId = null,
+  sessionType,
+  speechAnalysis,
+  transcriptionStatus = null,
+  isPollingTranscription = false,
   onNewSession,
   onReplay,
   onSaveAndGetAdvice,
@@ -42,7 +54,7 @@ export function ScoreSummaryScreen({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
-      className="min-h-screen w-full flex flex-col items-center justify-center px-4"
+      className="min-h-screen w-full flex flex-col items-center justify-center px-4 py-16"
     >
       <div className="flex flex-col items-center space-y-12 w-full max-w-[min(100%,32rem)]">
         {/* Score display */}
@@ -52,12 +64,20 @@ export function ScoreSummaryScreen({
           transition={{ duration: 0.5 }}
           className="flex flex-col items-center gap-4"
         >
-          <span
-            className="text-sm tracking-[0.2em] text-[#1a1a1a]/60"
-            style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
-          >
-            Overall Score
-          </span>
+          <div className="flex items-center gap-2">
+            <span
+              className="text-sm tracking-[0.2em] text-[#1a1a1a]/60"
+              style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
+            >
+              Overall Score
+            </span>
+            <span
+              className="text-[9px] tracking-[0.12em] uppercase px-2 py-0.5 border border-[#1a1a1a]/15 text-[#1a1a1a]/40"
+              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+            >
+              Self Rated
+            </span>
+          </div>
           <span
             className="text-7xl sm:text-8xl md:text-9xl tracking-[0.05em] text-[#1a1a1a]"
             style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
@@ -92,6 +112,17 @@ export function ScoreSummaryScreen({
               {adviceText}
             </p>
           </motion.div>
+        )}
+
+        {/* AI Analysis section */}
+        {isAuthenticated && isSaved && sessionId && (
+          <AiAnalysis
+            sessionId={sessionId}
+            sessionType={sessionType}
+            speechAnalysis={speechAnalysis ?? null}
+            transcriptionStatus={transcriptionStatus}
+            isPolling={isPollingTranscription}
+          />
         )}
 
         {/* Actions */}
@@ -135,8 +166,7 @@ export function ScoreSummaryScreen({
               {isSaving ? "Saving session..." : isSaved ? "Session saved automatically" : "Auto-saving session..."}
             </span>
           )}
-          
-          {/* User info when authenticated */}
+
           {isAuthenticated && user && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -152,7 +182,7 @@ export function ScoreSummaryScreen({
               </span>
             </motion.div>
           )}
-          
+
           {audio?.available && audio.fileUri && (
             <motion.button
               onClick={onReplay}
