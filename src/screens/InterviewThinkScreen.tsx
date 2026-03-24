@@ -24,9 +24,9 @@ export function InterviewThinkScreen({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
-      className="min-h-[100svh] w-full px-4 pt-[max(env(safe-area-inset-top),5.75rem)] pb-[max(env(safe-area-inset-bottom),1.5rem)]"
+      className="min-h-[100svh] w-full px-4 pt-16 pb-[max(env(safe-area-inset-bottom),1.5rem)]"
     >
-      <div className="mx-auto flex h-full min-h-[calc(100svh-7.25rem)] w-full max-w-[min(100%,32rem)] flex-col items-center justify-center space-y-8 sm:space-y-10">
+      <div className="mx-auto flex h-full min-h-[calc(100svh-5.5rem)] w-full max-w-[min(100%,32rem)] flex-col items-center justify-center space-y-8 sm:space-y-10">
         {/* Phase indicator */}
         <motion.div
           initial={{ opacity: 0 }}

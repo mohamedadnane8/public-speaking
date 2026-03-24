@@ -1,26 +1,21 @@
 import { motion } from "framer-motion";
-import type { SessionLanguage } from "@/types/session";
 import { ResumeUpload } from "@/components/ResumeUpload";
 import type { ResumeState } from "@/hooks/useInterview";
-
-const LANGUAGE_OPTIONS: Array<{ value: SessionLanguage; label: string }> = [
-  { value: "EN", label: "EN" },
-  { value: "FR", label: "FR" },
-  { value: "AR", label: "AR" },
-];
 
 interface InterviewHomeScreenProps {
   resumeState: ResumeState;
   categories: string[];
   selectedCategory: string | null;
   selectedDifficulty: string | null;
-  selectedLanguage: SessionLanguage;
   isFetchingQuestion: boolean;
   isCheckingResume: boolean;
+  isRecordingSupported: boolean;
+  hasRecordingPermission: boolean | null;
+  isRequestingPermission: boolean;
   onFileSelected: (file: File) => void;
   onCategoryChange: (category: string | null) => void;
   onDifficultyChange: (difficulty: string | null) => void;
-  onLanguageChange: (language: SessionLanguage) => void;
+  onRequestPermission: () => void;
   onStart: () => void;
 }
 
@@ -36,13 +31,15 @@ export function InterviewHomeScreen({
   categories,
   selectedCategory,
   selectedDifficulty,
-  selectedLanguage,
   isFetchingQuestion,
   isCheckingResume,
+  isRecordingSupported,
+  hasRecordingPermission,
+  isRequestingPermission,
   onFileSelected,
   onCategoryChange,
   onDifficultyChange,
-  onLanguageChange,
+  onRequestPermission,
   onStart,
 }: InterviewHomeScreenProps) {
   const categoryOptions = [
@@ -50,17 +47,19 @@ export function InterviewHomeScreen({
     ...categories.map((c) => ({ value: c, label: c })),
   ];
 
-  // Cycle through categories on click
-  const handleCategoryCycle = () => {
+  const handleCategoryCycle = (direction: 1 | -1 = 1) => {
     const currentIndex = categoryOptions.findIndex(
       (o) => o.value === selectedCategory
     );
-    const nextIndex = (currentIndex + 1) % categoryOptions.length;
+    const nextIndex = (currentIndex + direction + categoryOptions.length) % categoryOptions.length;
     onCategoryChange(categoryOptions[nextIndex].value);
   };
 
   const currentCategoryLabel =
     categoryOptions.find((o) => o.value === selectedCategory)?.label ?? "Random";
+
+  const isBehavioral = selectedCategory === "Behavioral";
+  const canStart = (resumeState.isUploaded || isBehavioral) && !resumeState.isParsing && !isFetchingQuestion;
 
   return (
     <motion.div
@@ -69,9 +68,9 @@ export function InterviewHomeScreen({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.6 }}
-      className="min-h-[100svh] w-full px-4 pt-[max(env(safe-area-inset-top),5rem)] pb-[max(env(safe-area-inset-bottom),2rem)]"
+      className="min-h-[100svh] w-full px-4 pt-16 pb-[max(env(safe-area-inset-bottom),2rem)]"
     >
-      <div className="mx-auto flex h-full min-h-[calc(100svh-7rem)] w-full max-w-[min(100%,28rem)] flex-col items-center justify-center space-y-9">
+      <div className="mx-auto flex h-full min-h-[calc(100svh-5rem)] w-full max-w-[min(100%,28rem)] flex-col items-center justify-center space-y-7">
         {/* Header */}
         <div className="flex flex-col items-center gap-3">
           <span
@@ -90,47 +89,46 @@ export function InterviewHomeScreen({
 
         {/* Category selector */}
         {categories.length > 0 && (
-          <button
-            type="button"
-            onClick={handleCategoryCycle}
-            className="flex flex-col items-center gap-2 group"
-          >
-            <span
-              className="text-lg tracking-[0.15em] text-[#1a1a1a]/90 group-hover:text-[#1a1a1a] transition-colors"
-              style={{
-                fontFamily: '"Cormorant Garamond", Georgia, serif',
-                fontWeight: 500,
-              }}
-            >
-              {currentCategoryLabel}
-            </span>
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => handleCategoryCycle(-1)}
+                className="p-1 text-[#1a1a1a]/35 hover:text-[#1a1a1a]/70 transition-colors"
+                aria-label="Previous category"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </button>
+              <span
+                className="text-lg tracking-[0.15em] text-[#1a1a1a]/90 min-w-[12rem] text-center"
+                style={{
+                  fontFamily: '"Cormorant Garamond", Georgia, serif',
+                  fontWeight: 500,
+                }}
+              >
+                {currentCategoryLabel}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleCategoryCycle(1)}
+                className="p-1 text-[#1a1a1a]/35 hover:text-[#1a1a1a]/70 transition-colors"
+                aria-label="Next category"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </button>
+            </div>
             <span
               className="text-xs tracking-[0.1em] text-[#1a1a1a]/45"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
               Category
             </span>
-          </button>
+          </div>
         )}
-
-        {/* Language */}
-        <div className="flex items-center gap-2">
-          {LANGUAGE_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => onLanguageChange(option.value)}
-              className={`min-w-[3rem] border px-3 py-1 text-[10px] uppercase tracking-[0.18em] transition-colors ${
-                selectedLanguage === option.value
-                  ? "border-[#1a1a1a]/65 bg-[#1a1a1a]/8 text-[#1a1a1a]"
-                  : "border-[#1a1a1a]/20 text-[#1a1a1a]/55 hover:border-[#1a1a1a]/40 hover:text-[#1a1a1a]/75"
-              }`}
-              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
 
         {/* Difficulty */}
         <div className="flex items-center gap-2">
@@ -155,8 +153,11 @@ export function InterviewHomeScreen({
         <ResumeUpload
           isParsing={resumeState.isParsing}
           parseError={resumeState.parseError}
-          cooldownUntil={resumeState.cooldownUntil}
           uploadedFileName={resumeState.fileName}
+          isUploaded={resumeState.isUploaded}
+          uploadsUsed={resumeState.uploadsUsed}
+          maxUploadsPerWeek={resumeState.maxUploadsPerWeek}
+          nextSlotAt={resumeState.nextSlotAt}
           onFileSelected={onFileSelected}
         />
 
@@ -192,18 +193,67 @@ export function InterviewHomeScreen({
             fontWeight: 400,
           }}
         >
-          {resumeState.isUploaded
+          {isBehavioral
             ? "Ready to practice."
-            : isCheckingResume
-              ? "Checking resume..."
-              : "Upload your resume to begin."}
+            : resumeState.isUploaded
+              ? "Ready to practice."
+              : isCheckingResume
+                ? "Checking resume..."
+                : "Upload your resume to begin."}
         </motion.p>
+
+        {/* Recording permission request */}
+        {isRecordingSupported && hasRecordingPermission !== true && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+            className="flex flex-col items-center gap-3"
+          >
+            <motion.button
+              onClick={onRequestPermission}
+              disabled={isRequestingPermission}
+              whileHover={{ backgroundColor: "rgba(122, 46, 46, 0.08)" }}
+              whileTap={{ scale: 0.98 }}
+              className="px-8 py-3 border border-[#7A2E2E]/60 text-[#7A2E2E] text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:border-[#7A2E2E] hover:bg-[#7A2E2E] hover:text-[#FDF6F0] disabled:opacity-50"
+              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+            >
+              {isRequestingPermission ? "Requesting..." : "Enable Recording"}
+            </motion.button>
+            <span
+              className="text-[10px] tracking-[0.1em] text-[#1a1a1a]/40 text-center"
+              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+            >
+              {hasRecordingPermission === false
+                ? "Permission denied — you can still practice without recording"
+                : "Required to review your practice"}
+            </span>
+          </motion.div>
+        )}
+
+        {/* Recording granted indicator */}
+        {isRecordingSupported && hasRecordingPermission === true && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+            className="flex items-center gap-2"
+          >
+            <div className="w-2 h-2 rounded-full bg-[#2E7A4E]" />
+            <span
+              className="text-[10px] tracking-[0.15em] uppercase text-[#2E7A4E]/80"
+              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+            >
+              Recording enabled
+            </span>
+          </motion.div>
+        )}
 
         {/* Start button */}
         <motion.button
           onClick={onStart}
           disabled={
-            !resumeState.isUploaded ||
+            (!resumeState.isUploaded && selectedCategory !== "Behavioral") ||
             resumeState.isParsing ||
             isFetchingQuestion
           }
@@ -211,13 +261,13 @@ export function InterviewHomeScreen({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6, duration: 0.5 }}
           whileHover={
-            resumeState.isUploaded
+            canStart
               ? { backgroundColor: "rgba(26, 26, 26, 0.08)" }
               : undefined
           }
-          whileTap={resumeState.isUploaded ? { scale: 0.98 } : undefined}
+          whileTap={canStart ? { scale: 0.98 } : undefined}
           className={`px-12 py-4 border text-xs tracking-[0.35em] uppercase transition-all duration-300 ${
-            resumeState.isUploaded
+            canStart
               ? "border-[#1a1a1a]/60 text-[#1a1a1a] hover:border-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-[#FDF6F0]"
               : "border-[#1a1a1a]/20 text-[#1a1a1a]/30 cursor-not-allowed"
           }`}
@@ -225,6 +275,23 @@ export function InterviewHomeScreen({
         >
           {isFetchingQuestion ? "Loading..." : "START"}
         </motion.button>
+
+        {/* Feature indicators */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8, duration: 0.5 }}
+          className="flex flex-col items-center gap-2"
+        >
+          {!isRecordingSupported && (
+            <span
+              className="text-[10px] tracking-[0.1em] text-[#7A2E2E]/70 text-center"
+              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+            >
+              Recording not available — use HTTPS
+            </span>
+          )}
+        </motion.div>
       </div>
     </motion.div>
   );

@@ -3,6 +3,7 @@ import type { InterviewQuestion } from "@/types/interview";
 import {
   parseResume,
   fetchRandomQuestion,
+  fetchBehavioralQuestion,
   fetchCategories,
   ResumeUploadError,
 } from "@/lib/interviewApi";
@@ -12,7 +13,13 @@ export interface ResumeState {
   isUploaded: boolean;
   isParsing: boolean;
   parseError: string | null;
-  cooldownUntil: string | null;
+  detectedLanguage: string | null;
+  detectedField: string | null;
+  questionsGenerated: number | null;
+  /** Weekly rate limit */
+  uploadsUsed: number | null;
+  maxUploadsPerWeek: number | null;
+  nextSlotAt: string | null;
 }
 
 const INITIAL_RESUME_STATE: ResumeState = {
@@ -20,7 +27,12 @@ const INITIAL_RESUME_STATE: ResumeState = {
   isUploaded: false,
   isParsing: false,
   parseError: null,
-  cooldownUntil: null,
+  detectedLanguage: null,
+  detectedField: null,
+  questionsGenerated: null,
+  uploadsUsed: null,
+  maxUploadsPerWeek: null,
+  nextSlotAt: null,
 };
 
 export function useInterview() {
@@ -45,7 +57,12 @@ export function useInterview() {
         isUploaded: true,
         isParsing: false,
         parseError: null,
-        cooldownUntil: null,
+        detectedLanguage: result.detectedLanguage,
+        detectedField: result.detectedField,
+        questionsGenerated: result.questionsGenerated,
+        uploadsUsed: null,
+        maxUploadsPerWeek: null,
+        nextSlotAt: null,
       });
 
       // Load categories after successful upload
@@ -63,7 +80,9 @@ export function useInterview() {
         ...prev,
         isParsing: false,
         parseError: error.message,
-        cooldownUntil: error.nextAllowedAt ?? prev.cooldownUntil,
+        uploadsUsed: error.uploadsUsed ?? prev.uploadsUsed,
+        maxUploadsPerWeek: error.maxUploadsPerWeek ?? prev.maxUploadsPerWeek,
+        nextSlotAt: error.nextSlotAt ?? prev.nextSlotAt,
       }));
       throw error;
     }
@@ -72,24 +91,45 @@ export function useInterview() {
   const loadCategories = useCallback(async () => {
     try {
       const cats = await fetchCategories();
-      setCategories(cats);
-      return cats;
+      // Always include Behavioral (static pool, separate from resume questions)
+      const withBehavioral = cats.includes("Behavioral") ? cats : [...cats, "Behavioral"];
+      setCategories(withBehavioral);
+      return withBehavioral;
     } catch {
-      return [];
+      // Even if API fails, Behavioral is always available
+      setCategories(["Behavioral"]);
+      return ["Behavioral"];
     }
   }, []);
 
-  const fetchNextQuestion = useCallback(async () => {
+  const fetchNextQuestion = useCallback(async (language?: string) => {
     setIsFetchingQuestion(true);
     try {
       const difficulty = selectedDifficulty ?? undefined;
-      const question = await fetchRandomQuestion(difficulty);
+
+      if (selectedCategory === "Behavioral") {
+        // Behavioral questions come from a separate static pool
+        const bq = await fetchBehavioralQuestion(language, difficulty);
+        const question: InterviewQuestion = {
+          id: `behavioral-${Date.now()}`,
+          question: bq.question,
+          category: "Behavioral",
+          difficulty: bq.difficulty,
+          thinkingSeconds: bq.thinkingSeconds,
+          answeringSeconds: bq.answeringSeconds,
+        };
+        setCurrentQuestion(question);
+        return question;
+      }
+
+      const category = selectedCategory ?? undefined;
+      const question = await fetchRandomQuestion(difficulty, category);
       setCurrentQuestion(question);
       return question;
     } finally {
       setIsFetchingQuestion(false);
     }
-  }, [selectedDifficulty]);
+  }, [selectedDifficulty, selectedCategory]);
 
   const checkResumeStatus = useCallback(async () => {
     // Try to fetch a question — if 404, no resume uploaded
@@ -102,17 +142,19 @@ export function useInterview() {
       // Also load categories
       try {
         const cats = await fetchCategories();
-        setCategories(cats);
+        const withBehavioral = cats.includes("Behavioral") ? cats : [...cats, "Behavioral"];
+        setCategories(withBehavioral);
       } catch {
-        // ignore
+        setCategories(["Behavioral"]);
       }
       return true;
     } catch (err) {
       const error = err as ResumeUploadError;
       if (error.code === "no_questions") {
+        // No resume questions yet, but Behavioral is always available
+        setCategories(["Behavioral"]);
         return false;
       }
-      // Some other error — assume no resume
       return false;
     }
   }, []);
