@@ -57,3 +57,9 @@ export function getNextMode(currentMode: Mode): Mode {
   const nextIndex = (currentIndex + 1) % MODES.length;
   return MODES[nextIndex].name;
 }
+
+export function getPrevMode(currentMode: Mode): Mode {
+  const currentIndex = MODES.findIndex((m) => m.name === currentMode);
+  const prevIndex = (currentIndex - 1 + MODES.length) % MODES.length;
+  return MODES[prevIndex].name;
+}

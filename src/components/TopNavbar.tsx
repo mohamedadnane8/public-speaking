@@ -1,16 +1,18 @@
 import { motion } from "framer-motion";
 
-export type NavSection = "GENERAL_PRACTICE" | "INTERVIEWS" | "HISTORY";
+export type NavSection = "GENERAL_PRACTICE" | "INTERVIEWS" | "HISTORY" | "FEATURE_REQUEST";
 
 interface NavItem {
   section: NavSection;
   label: string;
+  requiresAuth?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { section: "GENERAL_PRACTICE", label: "General Practice" },
   { section: "INTERVIEWS", label: "Interviews" },
   { section: "HISTORY", label: "History" },
+  { section: "FEATURE_REQUEST", label: "Request Feature" },
 ];
 
 interface TopNavbarProps {
@@ -18,12 +20,13 @@ interface TopNavbarProps {
   onNavigate: (section: NavSection) => void;
   isAuthenticated: boolean;
   isAuthLoading: boolean;
+  isLocalhost: boolean;
   user: { firstName: string; lastName: string } | null;
   isAccountMenuOpen: boolean;
   onToggleAccountMenu: () => void;
   onLogin: () => void;
+  onDevLogin: () => void;
   onLogout: () => void;
-  onRequestFeature: () => void;
   accountMenuRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -32,12 +35,13 @@ export function TopNavbar({
   onNavigate,
   isAuthenticated,
   isAuthLoading,
+  isLocalhost,
   user,
   isAccountMenuOpen,
   onToggleAccountMenu,
   onLogin,
+  onDevLogin,
   onLogout,
-  onRequestFeature,
   accountMenuRef,
 }: TopNavbarProps) {
   return (
@@ -50,8 +54,7 @@ export function TopNavbar({
       {/* Nav links */}
       <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto">
         {NAV_ITEMS.map((item) => {
-          // History requires authentication
-          if (item.section === "HISTORY" && !isAuthenticated) return null;
+          if (item.requiresAuth && !isAuthenticated) return null;
 
           const isActive = activeSection === item.section;
           return (
@@ -119,15 +122,6 @@ export function TopNavbar({
                   >
                     <button
                       type="button"
-                      onClick={onRequestFeature}
-                      className="w-full px-4 py-2 text-left text-[11px] tracking-[0.08em] uppercase text-[#1a1a1a]/75 hover:bg-[#1a1a1a]/5 hover:text-[#1a1a1a] transition-colors"
-                      style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-                      role="menuitem"
-                    >
-                      Request feature
-                    </button>
-                    <button
-                      type="button"
                       onClick={onLogout}
                       className="w-full px-4 py-2 text-left text-[11px] tracking-[0.08em] uppercase text-[#7A2E2E]/80 hover:bg-[#7A2E2E]/8 hover:text-[#7A2E2E] transition-colors"
                       style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
@@ -139,13 +133,24 @@ export function TopNavbar({
                 )}
               </div>
             ) : (
-              <button
-                onClick={onLogin}
-                className="text-[11px] tracking-[0.15em] text-[#1a1a1a]/60 hover:text-[#1a1a1a] transition-colors uppercase"
-                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-              >
-                Login
-              </button>
+              <div className="flex items-center gap-3">
+                {isLocalhost && (
+                  <button
+                    onClick={onDevLogin}
+                    className="text-[11px] tracking-[0.15em] text-[#2E7A4E]/70 hover:text-[#2E7A4E] transition-colors uppercase"
+                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                  >
+                    Dev Login
+                  </button>
+                )}
+                <button
+                  onClick={onLogin}
+                  className="text-[11px] tracking-[0.15em] text-[#1a1a1a]/60 hover:text-[#1a1a1a] transition-colors uppercase"
+                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                >
+                  Login
+                </button>
+              </div>
             )}
           </>
         )}

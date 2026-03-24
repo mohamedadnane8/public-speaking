@@ -13,7 +13,7 @@ interface HomeScreenProps {
   isRecordingSupported: boolean;
   hasRecordingPermission: boolean | null;
   isRequestingPermission: boolean;
-  onModeCycle: () => void;
+  onModeCycle: (direction?: 1 | -1) => void;
   onLanguageChange: (language: SessionLanguage) => void;
   onDifficultyChange: (difficulty: SessionDifficulty) => void;
   onManualTimeChange: (type: "think" | "speak", delta: number) => void;
@@ -59,9 +59,9 @@ export function HomeScreen({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.6 }}
-      className="min-h-[100svh] w-full px-4 pt-[max(env(safe-area-inset-top),5rem)] pb-[max(env(safe-area-inset-bottom),2rem)]"
+      className="min-h-[100svh] w-full px-4 pt-16 pb-[max(env(safe-area-inset-bottom),2rem)]"
     >
-      <div className="mx-auto flex h-full min-h-[calc(100svh-10rem)] w-full max-w-[min(100%,28rem)] flex-col items-center justify-center space-y-9">
+      <div className="mx-auto flex h-full min-h-[calc(100svh-5rem)] w-full max-w-[min(100%,28rem)] flex-col items-center justify-center space-y-7">
         {/* Mode timing display */}
         <div className="flex flex-col items-center gap-6">
           {/* Think time */}
@@ -148,24 +148,42 @@ export function HomeScreen({
         </div>
 
         {/* Mode selector */}
-        <button
-          type="button"
-          onClick={onModeCycle}
-          className="flex flex-col items-center gap-2 group"
-        >
-          <span
-            className="text-lg tracking-[0.15em] text-[#1a1a1a]/90 group-hover:text-[#1a1a1a] transition-colors"
-            style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}
-          >
-            {modeConfig.name}
-          </span>
+        <div className="flex flex-col items-center gap-2">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => onModeCycle(-1)}
+              className="p-1 text-[#1a1a1a]/35 hover:text-[#1a1a1a]/70 transition-colors"
+              aria-label="Previous mode"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+            <span
+              className="text-lg tracking-[0.15em] text-[#1a1a1a]/90 min-w-[10rem] text-center"
+              style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}
+            >
+              {modeConfig.name}
+            </span>
+            <button
+              type="button"
+              onClick={() => onModeCycle(1)}
+              className="p-1 text-[#1a1a1a]/35 hover:text-[#1a1a1a]/70 transition-colors"
+              aria-label="Next mode"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </button>
+          </div>
           <span
             className="text-xs tracking-[0.1em] text-[#1a1a1a]/45"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
             Trains: {modeConfig.descriptor}
           </span>
-        </button>
+        </div>
 
         {/* Language and difficulty */}
         <div className="flex w-full flex-col items-center gap-3">
