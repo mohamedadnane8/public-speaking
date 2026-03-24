@@ -1,27 +1,27 @@
 import { motion } from "framer-motion";
 import { RatingDots } from "@/components/RatingDots";
-import type { SessionRatings, RatingValue } from "@/types/session";
+import type { InterviewRatings, RatingValue } from "@/types/session";
 
-interface ReflectScreenProps {
-  ratings: Partial<SessionRatings>;
+interface InterviewReflectScreenProps {
+  ratings: Partial<InterviewRatings>;
   notes: string;
   canComplete: boolean;
-  onRateChange: (criteria: keyof SessionRatings, value: RatingValue) => void;
+  onRateChange: (criteria: keyof InterviewRatings, value: RatingValue) => void;
   onNotesChange: (notes: string) => void;
   onDone: () => void;
 }
 
-export function ReflectScreen({
+export function InterviewReflectScreen({
   ratings,
   notes,
   canComplete,
   onRateChange,
   onNotesChange,
   onDone,
-}: ReflectScreenProps) {
+}: InterviewReflectScreenProps) {
   return (
     <motion.div
-      key="reflect"
+      key="interview-reflect"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -42,7 +42,7 @@ export function ReflectScreen({
           </span>
         </motion.div>
 
-        {/* Rating criteria */}
+        {/* STAR framework ratings */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -50,55 +50,35 @@ export function ReflectScreen({
           className="flex flex-col items-center gap-6"
         >
           <RatingDots
-            label="Opening"
-            value={ratings.opening}
-            onChange={(v) => onRateChange("opening", v)}
+            label="Relevance"
+            value={ratings.relevance}
+            onChange={(v) => onRateChange("relevance", v)}
           />
           <RatingDots
-            label="Structure"
-            value={ratings.structure}
-            onChange={(v) => onRateChange("structure", v)}
+            label="Situation & Stakes"
+            value={ratings.situationStakes}
+            onChange={(v) => onRateChange("situationStakes", v)}
           />
           <RatingDots
-            label="Ending"
-            value={ratings.ending}
-            onChange={(v) => onRateChange("ending", v)}
+            label="Personal Action"
+            value={ratings.action}
+            onChange={(v) => onRateChange("action", v)}
           />
           <RatingDots
-            label="Confidence"
-            value={ratings.confidence}
-            onChange={(v) => onRateChange("confidence", v)}
+            label="Result & Impact"
+            value={ratings.resultImpact}
+            onChange={(v) => onRateChange("resultImpact", v)}
           />
           <RatingDots
-            label="Clarity"
-            value={ratings.clarity}
-            onChange={(v) => onRateChange("clarity", v)}
+            label="Delivery & Composure"
+            value={ratings.deliveryComposure}
+            onChange={(v) => onRateChange("deliveryComposure", v)}
           />
           <RatingDots
-            label="Authenticity"
-            value={ratings.authenticity}
-            onChange={(v) => onRateChange("authenticity", v)}
+            label="Conciseness"
+            value={ratings.conciseness}
+            onChange={(v) => onRateChange("conciseness", v)}
           />
-          <RatingDots
-            label="Language & Expression"
-            value={ratings.languageExpression}
-            onChange={(v) => onRateChange("languageExpression", v)}
-          />
-
-          {/* Passion bonus (optional) */}
-          <div className="pt-2 border-t border-[#1a1a1a]/10 w-full flex flex-col items-center">
-            <span
-              className="text-[9px] tracking-[0.15em] uppercase text-[#1a1a1a]/35 mb-3"
-              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-            >
-              Bonus
-            </span>
-            <RatingDots
-              label="Passion & Novelty"
-              value={ratings.passion}
-              onChange={(v) => onRateChange("passion", v)}
-            />
-          </div>
         </motion.div>
 
         {/* Notes textarea */}
