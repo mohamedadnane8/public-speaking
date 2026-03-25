@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, Legend } from "recharts";
+import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Legend } from "recharts";
 import type { SessionAudio, SessionType, SessionRatings, InterviewRatings, TranscriptionStatus } from "@/types/session";
 import type { User } from "@/hooks/useAuth";
 import { AiAnalysis } from "@/components/AiAnalysis";
@@ -362,6 +362,7 @@ function SelfReviewRadarChart({
           <ResponsiveContainer width="100%" height={260}>
             <RadarChart data={data} cx="50%" cy="50%" outerRadius="65%">
               <PolarGrid stroke="rgba(26,26,26,0.08)" />
+              <PolarRadiusAxis domain={[0, 5]} tick={false} axisLine={false} />
               <PolarAngleAxis
                 dataKey="criterion"
                 tick={{
