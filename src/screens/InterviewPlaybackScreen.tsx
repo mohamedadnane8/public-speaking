@@ -1,6 +1,5 @@
 import { motion } from "framer-motion";
-import { Play, Pause, SkipBack, SkipForward } from "lucide-react";
-import { Slider } from "@/components/ui/slider";
+import { AudioPlayer } from "@/components/AudioPlayer";
 import type { SessionAudio } from "@/types/session";
 
 interface InterviewPlaybackScreenProps {
@@ -16,13 +15,6 @@ interface InterviewPlaybackScreenProps {
   onSkipBackward: () => void;
   onSkipForward: () => void;
   onContinue: () => void;
-}
-
-function formatTime(seconds: number): string {
-  if (!isFinite(seconds) || seconds < 0) return "0:00";
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
 export function InterviewPlaybackScreen({
@@ -41,22 +33,14 @@ export function InterviewPlaybackScreen({
 }: InterviewPlaybackScreenProps) {
   const getErrorMessage = (errorCode?: string) => {
     switch (errorCode) {
-      case "MIC_PERMISSION":
-        return "Microphone permission denied";
-      case "REC_START_FAIL":
-        return "Failed to start recording";
-      case "REC_STOP_FAIL":
-        return "Failed to save recording";
-      case "NO_AUDIO":
-        return "No audio captured";
-      case "INTERRUPTED":
-        return "Recording interrupted";
-      default:
-        return "";
+      case "MIC_PERMISSION": return "Microphone permission denied";
+      case "REC_START_FAIL": return "Failed to start recording";
+      case "REC_STOP_FAIL": return "Failed to save recording";
+      case "NO_AUDIO": return "No audio captured";
+      case "INTERRUPTED": return "Recording interrupted";
+      default: return "";
     }
   };
-
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
     <motion.div
@@ -76,10 +60,7 @@ export function InterviewPlaybackScreen({
         >
           <p
             className="text-xl sm:text-2xl md:text-3xl leading-relaxed text-[#1a1a1a]/90"
-            style={{
-              fontFamily: '"Cormorant Garamond", Georgia, serif',
-              fontWeight: 400,
-            }}
+            style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
           >
             {question}
           </p>
@@ -96,73 +77,15 @@ export function InterviewPlaybackScreen({
         {/* Playback controls */}
         <div className="flex flex-col items-center gap-6 w-full">
           {audio?.available && audio.fileUri ? (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center gap-4 w-full max-w-sm"
-            >
-              {/* Progress bar with time */}
-              <div className="w-full flex items-center gap-3">
-                <span
-                  className="text-xs text-[#1a1a1a]/50 w-10 text-right"
-                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-                >
-                  {formatTime(currentTime)}
-                </span>
-                <Slider
-                  value={[progress]}
-                  max={100}
-                  step={0.1}
-                  onValueChange={([value]) =>
-                    onSeek((value / 100) * duration)
-                  }
-                  className="flex-1"
-                />
-                <span
-                  className="text-xs text-[#1a1a1a]/50 w-10"
-                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-                >
-                  {formatTime(duration)}
-                </span>
-              </div>
-
-              {/* Control buttons */}
-              <div className="flex items-center gap-6">
-                <button
-                  type="button"
-                  onClick={onSkipBackward}
-                  className="p-3 text-[#1a1a1a]/60 hover:text-[#1a1a1a] hover:bg-[#1a1a1a]/5 rounded-full transition-all"
-                  aria-label="Skip back 5 seconds"
-                >
-                  <SkipBack size={20} />
-                </button>
-                <button
-                  type="button"
-                  onClick={onPlayToggle}
-                  className="p-4 bg-[#1a1a1a] text-[#FDF6F0] rounded-full hover:bg-[#1a1a1a]/90 transition-all"
-                  aria-label={isPlaying ? "Pause" : "Play"}
-                >
-                  {isPlaying ? (
-                    <Pause size={24} />
-                  ) : (
-                    <Play size={24} className="ml-0.5" />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={onSkipForward}
-                  className="p-3 text-[#1a1a1a]/60 hover:text-[#1a1a1a] hover:bg-[#1a1a1a]/5 rounded-full transition-all"
-                  aria-label="Skip forward 5 seconds"
-                >
-                  <SkipForward size={20} />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-12 text-[10px] tracking-[0.1em] uppercase text-[#1a1a1a]/30">
-                <span>-5s</span>
-                <span>+5s</span>
-              </div>
-            </motion.div>
+            <AudioPlayer
+              isPlaying={isPlaying}
+              currentTime={currentTime}
+              duration={duration}
+              onPlayToggle={onPlayToggle}
+              onSeek={onSeek}
+              onSkipBackward={onSkipBackward}
+              onSkipForward={onSkipForward}
+            />
           ) : (
             <div className="flex flex-col items-center gap-2">
               <span
@@ -174,10 +97,7 @@ export function InterviewPlaybackScreen({
               {audio?.errorCode && (
                 <span
                   className="text-[10px] text-[#1a1a1a]/30"
-                  style={{
-                    fontFamily: '"Inter", sans-serif',
-                    fontWeight: 400,
-                  }}
+                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                 >
                   {getErrorMessage(audio.errorCode)}
                 </span>

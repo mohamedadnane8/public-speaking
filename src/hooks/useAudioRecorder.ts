@@ -19,11 +19,25 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
   const startTimeRef = useRef<number>(0);
 
   const startRecording = useCallback(async (): Promise<void> => {
+    // Stop any previous recorder to prevent stale chunks leaking into the new recording
+    const prevRecorder = mediaRecorderRef.current;
+    if (prevRecorder && prevRecorder.state !== "inactive") {
+      try {
+        prevRecorder.ondataavailable = null;
+        prevRecorder.onstop = null;
+        prevRecorder.onerror = null;
+        prevRecorder.stop();
+        prevRecorder.stream?.getTracks().forEach((t) => t.stop());
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+
     // Reset state
     chunksRef.current = [];
     startTimeRef.current = Date.now();
     mediaRecorderRef.current = null;
-    
+
     try {
       // Check if in secure context (required for getUserMedia)
       if (!window.isSecureContext) {

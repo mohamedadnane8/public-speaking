@@ -118,6 +118,51 @@ export async function analyzeSession(
   return await response.json();
 }
 
+/**
+ * Early save: upload audio + create session in one multipart request.
+ * Server starts transcription immediately.
+ */
+export async function recordSession(
+  audioFile: File,
+  sessionData: Record<string, unknown>
+): Promise<import("@/types/session").Session> {
+  const formData = new FormData();
+  formData.append("audio", audioFile);
+  formData.append("session", JSON.stringify(sessionData));
+
+  const response = await apiClient("/api/sessions/record", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { message?: string } | null;
+    throw new Error(body?.message ?? `Record session failed (${response.status})`);
+  }
+
+  return (await response.json()) as import("@/types/session").Session;
+}
+
+/**
+ * Update an existing session with ratings after self-evaluation.
+ */
+export async function updateSession(
+  sessionId: string,
+  data: Record<string, unknown>
+): Promise<import("@/types/session").Session> {
+  const response = await apiClient(`/api/sessions/${sessionId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { message?: string } | null;
+    throw new Error(body?.message ?? `Update session failed (${response.status})`);
+  }
+
+  return (await response.json()) as import("@/types/session").Session;
+}
+
 export async function fetchCategories(): Promise<string[]> {
   const response = await apiClient("/api/resume/questions/categories", {
     method: "GET",

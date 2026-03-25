@@ -1,12 +1,13 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { AudioPlayer } from "@/components/AudioPlayer";
+import { apiClient } from "@/lib/apiClient";
 import type { Session } from "@/types/session";
 
 interface HistoryScreenProps {
   sessions: Session[];
   isAuthenticated: boolean;
   onDeleteSession: (id: string) => void;
-  onReplayAudio: (session: Session) => void;
 }
 
 type StatusFilter = "ALL" | "COMPLETED" | "CANCELLED" | "FAILED";
@@ -41,7 +42,6 @@ export function HistoryScreen({
   sessions,
   isAuthenticated,
   onDeleteSession,
-  onReplayAudio,
 }: HistoryScreenProps) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
@@ -353,19 +353,15 @@ export function HistoryScreen({
                 </div>
               )}
 
+              {/* Audio player */}
+              {selectedSession.audio?.available &&
+                (selectedSession.audio?.fileUri || selectedSession.audio?.objectKey) && (
+                <div className="mt-4">
+                  <HistoryAudioPlayer session={selectedSession} />
+                </div>
+              )}
+
               <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  disabled={
-                    !selectedSession.audio?.available ||
-                    (!selectedSession.audio?.fileUri && !selectedSession.audio?.objectKey)
-                  }
-                  onClick={() => onReplayAudio(selectedSession)}
-                  className="border border-[#1a1a1a]/25 px-4 py-2 text-[10px] uppercase tracking-[0.18em] text-[#1a1a1a]/70 transition-colors hover:border-[#1a1a1a]/45 hover:text-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-35"
-                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-                >
-                  Replay Audio
-                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -383,5 +379,127 @@ export function HistoryScreen({
         )}
       </AnimatePresence>
     </motion.div>
+  );
+}
+
+/** Self-contained audio player for history sessions. Fetches presigned URL if needed. */
+function HistoryAudioPlayer({ session }: { session: Session }) {
+  const [audioUrl, setAudioUrl] = useState<string | null>(session.audio?.fileUri ?? null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  // Fetch presigned URL if no local fileUri
+  const ensureUrl = useCallback(async () => {
+    if (audioUrl) return audioUrl;
+    if (!session.audio?.objectKey) return null;
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiClient(`/api/sessions/${session.id}/audio-url`, { method: "GET" });
+      if (!response.ok) throw new Error("Failed to get audio URL");
+      const payload = (await response.json()) as { url?: string };
+      if (!payload.url) throw new Error("No URL in response");
+      setAudioUrl(payload.url);
+      return payload.url;
+    } catch (err) {
+      setError("Unable to load audio");
+      console.error(err);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [audioUrl, session.id, session.audio?.objectKey]);
+
+  // Progress tracking
+  useEffect(() => {
+    const update = () => {
+      if (audioRef.current) {
+        setCurrentTime(audioRef.current.currentTime);
+        setDuration(audioRef.current.duration || 0);
+      }
+      rafRef.current = requestAnimationFrame(update);
+    };
+    if (isPlaying) rafRef.current = requestAnimationFrame(update);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [isPlaying]);
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  const handlePlayToggle = useCallback(async () => {
+    if (isPlaying) {
+      audioRef.current?.pause();
+      setIsPlaying(false);
+      return;
+    }
+    const url = await ensureUrl();
+    if (!url) return;
+    if (!audioRef.current) {
+      audioRef.current = new Audio(url);
+      audioRef.current.onended = () => setIsPlaying(false);
+      audioRef.current.onloadedmetadata = () => setDuration(audioRef.current?.duration || 0);
+    }
+    audioRef.current.play();
+    setIsPlaying(true);
+  }, [isPlaying, ensureUrl]);
+
+  const handleSeek = useCallback((time: number) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = Math.max(0, Math.min(time, duration));
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  }, [duration]);
+
+  const handleSkipBackward = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 5);
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  }, []);
+
+  const handleSkipForward = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = Math.min(duration, audioRef.current.currentTime + 5);
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  }, [duration]);
+
+  if (loading) {
+    return (
+      <span className="text-[10px] text-[#1a1a1a]/40" style={{ fontFamily: '"Inter", sans-serif' }}>
+        Loading audio...
+      </span>
+    );
+  }
+
+  if (error) {
+    return (
+      <span className="text-[10px] text-[#7A2E2E]/60" style={{ fontFamily: '"Inter", sans-serif' }}>
+        {error}
+      </span>
+    );
+  }
+
+  return (
+    <AudioPlayer
+      compact
+      isPlaying={isPlaying}
+      currentTime={currentTime}
+      duration={duration}
+      onPlayToggle={handlePlayToggle}
+      onSeek={handleSeek}
+      onSkipBackward={handleSkipBackward}
+      onSkipForward={handleSkipForward}
+    />
   );
 }

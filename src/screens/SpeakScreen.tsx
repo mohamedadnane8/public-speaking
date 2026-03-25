@@ -8,22 +8,17 @@ interface SpeakScreenProps {
   totalSeconds: number;
   isRecording: boolean;
   audio: SessionAudio | null | undefined;
-  isTranscribing: boolean;
 }
 
-export function SpeakScreen({ word, seconds, totalSeconds, isRecording, audio, isTranscribing }: SpeakScreenProps) {
+export function SpeakScreen({ word, seconds, totalSeconds, isRecording, audio }: SpeakScreenProps) {
   const progress = 1 - seconds / totalSeconds;
   const isLowTime = seconds <= 5;
 
-  const recordingLabel = isRecording 
-    ? "Recording" 
-    : audio?.available === false 
-    ? "No recording" 
+  const recordingLabel = isRecording
+    ? "Recording"
+    : audio?.available === false
+    ? "No recording"
     : "Starting...";
-  
-  const transcribingLabel = isTranscribing
-    ? "Transcribing"
-    : "Transcription off";
 
   return (
     <motion.div
@@ -66,7 +61,7 @@ export function SpeakScreen({ word, seconds, totalSeconds, isRecording, audio, i
             >
               {word}
             </div>
-            
+
             {/* Recording indicator - inside the circle below the word */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -83,25 +78,6 @@ export function SpeakScreen({ word, seconds, totalSeconds, isRecording, audio, i
                 style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
               >
                 {recordingLabel}
-              </span>
-            </motion.div>
-
-            {/* Transcription indicator */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex items-center gap-2 mt-1"
-            >
-              <motion.div
-                animate={isTranscribing ? { scale: [1, 1.2, 1], opacity: [1, 0.6, 1] } : {}}
-                transition={{ duration: 1.5, repeat: Infinity }}
-                className={`w-1.5 h-1.5 rounded-full ${isTranscribing ? "bg-[#1a1a1a]/60" : "bg-[#1a1a1a]/20"}`}
-              />
-              <span
-                className="text-[9px] tracking-[0.15em] uppercase text-[#1a1a1a]/40"
-                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-              >
-                {transcribingLabel}
               </span>
             </motion.div>
           </CircularProgress>

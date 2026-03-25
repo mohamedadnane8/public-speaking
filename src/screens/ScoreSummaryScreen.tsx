@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import type { SessionAudio, SessionType, TranscriptionStatus } from "@/types/session";
 import type { User } from "@/hooks/useAuth";
 import { AiAnalysis } from "@/components/AiAnalysis";
+import { AudioPlayer } from "@/components/AudioPlayer";
 
 interface ScoreSummaryScreenProps {
   overallScore: number;
@@ -17,8 +18,15 @@ interface ScoreSummaryScreenProps {
   speechAnalysis?: unknown;
   transcriptionStatus?: TranscriptionStatus | null;
   isPollingTranscription?: boolean;
+  /** Playback props */
+  isPlaying?: boolean;
+  currentTime?: number;
+  duration?: number;
+  onPlayToggle?: () => void;
+  onSeek?: (time: number) => void;
+  onSkipBackward?: () => void;
+  onSkipForward?: () => void;
   onNewSession: () => void;
-  onReplay: () => void;
   onSaveAndGetAdvice: () => void;
 }
 
@@ -35,8 +43,14 @@ export function ScoreSummaryScreen({
   speechAnalysis,
   transcriptionStatus = null,
   isPollingTranscription = false,
+  isPlaying = false,
+  currentTime = 0,
+  duration = 0,
+  onPlayToggle,
+  onSeek,
+  onSkipBackward,
+  onSkipForward,
   onNewSession,
-  onReplay,
   onSaveAndGetAdvice,
 }: ScoreSummaryScreenProps) {
   const adviceText =
@@ -183,16 +197,19 @@ export function ScoreSummaryScreen({
             </motion.div>
           )}
 
-          {audio?.available && audio.fileUri && (
-            <motion.button
-              onClick={onReplay}
-              whileHover={{ backgroundColor: "rgba(26, 26, 26, 0.06)" }}
-              whileTap={{ scale: 0.98 }}
-              className="text-[11px] tracking-[0.15em] uppercase text-[#1a1a1a]/40 hover:text-[#1a1a1a]/70 transition-colors mt-2"
-              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-            >
-              Replay Recording
-            </motion.button>
+          {audio?.available && audio.fileUri && onPlayToggle && onSeek && onSkipBackward && onSkipForward && (
+            <div className="mt-4 w-full flex justify-center">
+              <AudioPlayer
+                compact
+                isPlaying={isPlaying}
+                currentTime={currentTime}
+                duration={duration}
+                onPlayToggle={onPlayToggle}
+                onSeek={onSeek}
+                onSkipBackward={onSkipBackward}
+                onSkipForward={onSkipForward}
+              />
+            </div>
           )}
         </motion.div>
       </div>

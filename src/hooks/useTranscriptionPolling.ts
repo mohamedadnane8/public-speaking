@@ -22,6 +22,18 @@ export function useTranscriptionPolling(
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
+  const prevSessionIdRef = useRef<string | null>(null);
+
+  // Reset state when sessionId changes to avoid showing stale transcript from previous session
+  useEffect(() => {
+    if (sessionId !== prevSessionIdRef.current) {
+      setTranscript(null);
+      setTranscriptionStatus(null);
+      setError(null);
+      setIsPolling(false);
+      prevSessionIdRef.current = sessionId;
+    }
+  }, [sessionId]);
 
   const stopPolling = useCallback(() => {
     if (intervalRef.current) {
@@ -37,8 +49,8 @@ export function useTranscriptionPolling(
       return;
     }
 
-    // Don't poll if already completed or failed
-    if (transcriptionStatus === "Completed" || transcriptionStatus === "Failed") {
+    // Don't poll if already completed, failed, or transcript already available
+    if (transcriptionStatus === "Completed" || transcriptionStatus === "Failed" || transcript) {
       return;
     }
 
@@ -63,9 +75,13 @@ export function useTranscriptionPolling(
           setTranscript(session.transcript);
         }
 
-        if (status === "Completed" || status === "Failed") {
+        // Stop polling if: explicit terminal status, OR transcript already exists (backend may leave status null)
+        if (status === "Completed" || status === "Failed" || session.transcript) {
           if (status === "Failed") {
             setError(session.transcriptionError ?? "Transcription failed");
+          }
+          if (session.transcript && !status) {
+            setTranscriptionStatus("Completed");
           }
           stopPolling();
         }
@@ -79,7 +95,7 @@ export function useTranscriptionPolling(
     intervalRef.current = setInterval(poll, POLL_INTERVAL);
 
     return () => stopPolling();
-  }, [sessionId, enabled, transcriptionStatus, stopPolling]);
+  }, [sessionId, enabled, transcriptionStatus, transcript, stopPolling]);
 
   return { transcriptionStatus, transcript, isPolling, error };
 }

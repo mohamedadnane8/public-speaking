@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
+import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer } from "recharts";
 import { analyzeSession } from "@/lib/interviewApi";
 import type { SessionType, TranscriptionStatus } from "@/types/session";
 
@@ -158,6 +159,9 @@ export function AiAnalysis({
             </span>
           </div>
         </div>
+
+        {/* Radar Chart */}
+        <CriteriaRadarChart scores={analysis.scores} />
 
         {/* Filler Analysis */}
         {analysis.filler_analysis && (
@@ -357,5 +361,65 @@ export function AiAnalysis({
         </span>
       )}
     </motion.div>
+  );
+}
+
+// ─── Radar Chart ────────────────────────────────────────────────
+
+const LABEL_MAP: Record<string, string> = {
+  opening: "Opening",
+  structure: "Structure",
+  closing: "Closing",
+  confidence: "Confidence",
+  clarity: "Clarity",
+  authenticity: "Authenticity",
+  language: "Language",
+  passion: "Passion",
+  relevance: "Relevance",
+  situation: "Situation",
+  action: "Action",
+  result: "Result",
+  delivery: "Delivery",
+  conciseness: "Conciseness",
+};
+
+function CriteriaRadarChart({ scores }: { scores: Record<string, ScoreEntry> }) {
+  const data = useMemo(
+    () =>
+      Object.entries(scores).map(([key, score]) => ({
+        criterion: LABEL_MAP[key] ?? key.replace(/_/g, " "),
+        score: score.raw,
+        fullMark: 5,
+      })),
+    [scores]
+  );
+
+  if (data.length === 0) return null;
+
+  return (
+    <div className="w-full flex justify-center">
+      <div className="w-full max-w-[280px]">
+        <ResponsiveContainer width="100%" height={240}>
+          <RadarChart data={data} cx="50%" cy="50%" outerRadius="70%">
+            <PolarGrid stroke="rgba(26,26,26,0.08)" />
+            <PolarAngleAxis
+              dataKey="criterion"
+              tick={{
+                fontSize: 9,
+                fill: "rgba(26,26,26,0.5)",
+                fontFamily: '"Inter", sans-serif',
+              }}
+            />
+            <Radar
+              dataKey="score"
+              stroke="#1a1a1a"
+              fill="rgba(26,26,26,0.06)"
+              strokeWidth={1.5}
+              dot={{ r: 3, fill: "#1a1a1a", strokeWidth: 0 }}
+            />
+          </RadarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 }

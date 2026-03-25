@@ -1,8 +1,5 @@
 import type { SessionDifficulty, SessionLanguage } from "@/types/session";
-
-const RAW_API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "https://api.publicspeaking.adnanelogs.com";
-const API_BASE_URL = RAW_API_BASE_URL.replace(/\/+$/, "");
+import { API_BASE_URL } from "./apiClient";
 
 interface BackendRandomWordResponse {
   word: string;

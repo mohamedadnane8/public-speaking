@@ -8,7 +8,6 @@ interface InterviewSpeakScreenProps {
   totalSeconds: number;
   isRecording: boolean;
   audio: SessionAudio | null | undefined;
-  isTranscribing: boolean;
 }
 
 export function InterviewSpeakScreen({
@@ -17,7 +16,6 @@ export function InterviewSpeakScreen({
   totalSeconds,
   isRecording,
   audio,
-  isTranscribing,
 }: InterviewSpeakScreenProps) {
   const progress = 1 - seconds / totalSeconds;
   const isLowTime = seconds <= 5;
@@ -27,10 +25,6 @@ export function InterviewSpeakScreen({
     : audio?.available === false
       ? "No recording"
       : "Starting...";
-
-  const transcribingLabel = isTranscribing
-    ? "Transcribing"
-    : "Transcription off";
 
   return (
     <motion.div
@@ -95,31 +89,6 @@ export function InterviewSpeakScreen({
                 style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
               >
                 {recordingLabel}
-              </span>
-            </motion.div>
-
-            {/* Transcription indicator */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex items-center gap-2 mt-1"
-            >
-              <motion.div
-                animate={
-                  isTranscribing
-                    ? { scale: [1, 1.2, 1], opacity: [1, 0.6, 1] }
-                    : {}
-                }
-                transition={{ duration: 1.5, repeat: Infinity }}
-                className={`w-1.5 h-1.5 rounded-full ${
-                  isTranscribing ? "bg-[#1a1a1a]/60" : "bg-[#1a1a1a]/20"
-                }`}
-              />
-              <span
-                className="text-[9px] tracking-[0.15em] uppercase text-[#1a1a1a]/40"
-                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-              >
-                {transcribingLabel}
               </span>
             </motion.div>
           </CircularProgress>

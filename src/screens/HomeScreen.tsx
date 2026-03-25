@@ -2,8 +2,6 @@ import { motion } from "framer-motion";
 import type { ModeConfig } from "@/lib/modes";
 import type { SessionDifficulty, SessionLanguage } from "@/types/session";
 
-import { isTranscriptionSupported } from "@/hooks/useTranscription";
-
 interface HomeScreenProps {
   modeConfig: ModeConfig;
   manualThinkSeconds: number;
@@ -328,14 +326,6 @@ export function HomeScreen({
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
               Recording not available — use HTTPS
-            </span>
-          )}
-          {!isTranscriptionSupported && (
-            <span
-              className="text-[10px] tracking-[0.1em] text-[#1a1a1a]/30 text-center"
-              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-            >
-              Transcription not supported in this browser
             </span>
           )}
         </motion.div>

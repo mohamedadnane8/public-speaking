@@ -10,7 +10,7 @@
  */
 
 const RAW_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://api.publicspeaking.adnanelogs.com";
-const API_BASE_URL = RAW_API_BASE_URL.replace(/\/+$/, "");
+export const API_BASE_URL = RAW_API_BASE_URL.replace(/\/+$/, "");
 const DEBUG = import.meta.env.DEV;
 
 // Token storage (in-memory for security)
