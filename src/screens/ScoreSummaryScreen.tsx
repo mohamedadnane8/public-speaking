@@ -183,21 +183,7 @@ export function ScoreSummaryScreen({
             </span>
           )}
 
-          {isAuthenticated && user && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="flex items-center gap-2 mt-1"
-            >
-              <span
-                className="text-[10px] tracking-[0.1em] text-[#1a1a1a]/40"
-                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
-              >
-                {t("score.signedInAs", { firstName: user.firstName, lastName: user.lastName })}
-              </span>
-            </motion.div>
-          )}
+         
 
           {audio?.available && audio.fileUri && onPlayToggle && onSeek && onSkipBackward && onSkipForward && (
             <div className="mt-4 w-full flex justify-center">
