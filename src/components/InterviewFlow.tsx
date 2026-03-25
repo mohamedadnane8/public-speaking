@@ -80,7 +80,7 @@ export function InterviewFlow() {
           question={iv.interview.currentQuestion.question}
           category={iv.interview.currentQuestion.category}
           audio={sess.audio}
-          transcript={sess.transcriptionPolling.transcript ?? undefined}
+          transcript={sess.session?.transcript ?? undefined}
           isPlaying={app.isPlaying}
           currentTime={app.currentTime}
           duration={app.duration}
@@ -121,8 +121,8 @@ export function InterviewFlow() {
           sessionId={sess.savedServerSessionId}
           sessionType="Interview"
           speechAnalysis={sess.savedSpeechAnalysis}
-          transcriptionStatus={sess.transcriptionPolling.transcriptionStatus}
-          isPollingTranscription={sess.transcriptionPolling.isPolling}
+          transcriptionStatus={null}
+          isPollingTranscription={false}
           isPlaying={app.isPlaying}
           currentTime={app.currentTime}
           duration={app.duration}

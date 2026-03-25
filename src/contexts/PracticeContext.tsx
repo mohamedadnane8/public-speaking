@@ -223,8 +223,11 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
   const transitionToPlayback = useCallback(async () => {
     speakTimer.pause();
     await sess.stopRecording();
+    if (sess.audio?.durationMs) {
+      app.setFallbackDuration(sess.audio.durationMs);
+    }
     app.setScreen("PLAYBACK");
-  }, [speakTimer, sess.stopRecording, app.setScreen]);
+  }, [speakTimer, sess.stopRecording, app.setScreen, app.setFallbackDuration, sess.audio?.durationMs]);
 
   // Keep refs up to date for timer callbacks
   transitionToSpeakRef.current = transitionToSpeak;
@@ -253,6 +256,9 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
     const handleVisibilityChange = () => {
       if (document.hidden) {
         if (app.screen === "THINK" || app.screen === "SPEAK") {
+          if (app.screen === "SPEAK") {
+            toast.warning("Recording stopped because the app went to the background.");
+          }
           handleCancel("APP_BACKGROUND");
         }
       }
@@ -388,8 +394,7 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
   const handleDoneRating = () => {
     if (!hasAllRatings(ratings)) return;
     const overallScore = calculateOverallScore(ratings);
-    const transcript = sess.transcriptionPolling.transcript ?? undefined;
-    sess.completeSession(ratings, overallScore, notes, transcript);
+    sess.completeSession(ratings, overallScore, notes, undefined);
     sess.setSavedSessionId(null);
     sess.setSaveAttemptedSessionId(null);
     app.setScreen("SCORE_SUMMARY");

@@ -2,7 +2,6 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo } 
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { useSession } from "../hooks/useSession";
-import { useTranscriptionPolling } from "../hooks/useTranscriptionPolling";
 import { useAppContext } from "./AppContext";
 import { apiClient } from "../lib/apiClient";
 import { recordSession, updateSession, triggerTranscription } from "../lib/interviewApi";
@@ -134,9 +133,6 @@ interface SessionContextValue {
   remoteSessions: Session[] | null;
   historySessions: Session[];
 
-  // Transcription
-  transcriptionPolling: ReturnType<typeof useTranscriptionPolling>;
-
   // Actions
   saveSessionEarly: (sessionType: "General" | "Interview", wordOrQuestion: string, language: SessionLanguage, difficulty: SessionDifficulty, thinkSeconds: number, speakSeconds: number, modeName: string) => Promise<void>;
   saveSessionAndGetAdvice: (sessionToSave: Session, options: { loginIfUnauthenticated: boolean; showToast: boolean }) => Promise<boolean>;
@@ -172,13 +168,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [saveAttemptedSessionId, setSaveAttemptedSessionId] = useState<string | null>(null);
   const [earlySaveStatus, setEarlySaveStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [remoteSessions, setRemoteSessions] = useState<Session[] | null>(null);
-
-  // Transcription polling
-  const shouldPollTranscription = !!(
-    savedServerSessionId &&
-    (app.screen === "SCORE_SUMMARY" || app.screen === "INTERVIEW_SCORE")
-  );
-  const transcriptionPolling = useTranscriptionPolling(savedServerSessionId, shouldPollTranscription);
 
   // Remote sessions
   const loadRemoteSessions = useCallback(async () => {
@@ -481,7 +470,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     ...sessionHook,
     isSaving, savedSessionId, savedServerSessionId, savedSpeechAnalysis, earlySaveStatus,
     remoteSessions, historySessions,
-    transcriptionPolling,
     saveSessionEarly, saveSessionAndGetAdvice, loadRemoteSessions,
     handleDeleteHistorySession, handleReplayHistoryAudio,
     resetSaveState,
@@ -490,7 +478,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     sessionHook,
     isSaving, savedSessionId, savedServerSessionId, savedSpeechAnalysis, earlySaveStatus,
     remoteSessions, historySessions,
-    transcriptionPolling,
     saveSessionEarly, saveSessionAndGetAdvice, loadRemoteSessions,
     handleDeleteHistorySession, handleReplayHistoryAudio,
     resetSaveState,
