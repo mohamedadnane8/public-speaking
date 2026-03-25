@@ -52,6 +52,7 @@ export function GeneralFlow() {
           onDifficultyChange={practice.handleDifficultyChange}
           onManualTimeChange={practice.handleManualTimeChange}
           onRequestPermission={practice.handleRequestPermission}
+          onRecheckPermission={practice.handleRecheckPermission}
           onSpin={practice.handleSpin}
         />
       )}

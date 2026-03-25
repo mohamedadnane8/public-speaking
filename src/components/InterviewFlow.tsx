@@ -58,6 +58,7 @@ export function InterviewFlow() {
             onCategoryChange={iv.interview.setSelectedCategory}
             onDifficultyChange={iv.interview.setSelectedDifficulty}
             onRequestPermission={practice.handleRequestPermission}
+            onRecheckPermission={practice.handleRecheckPermission}
             onStart={iv.handleInterviewStart}
           />
         ) : (

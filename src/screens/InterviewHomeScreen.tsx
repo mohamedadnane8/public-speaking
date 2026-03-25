@@ -17,6 +17,7 @@ interface InterviewHomeScreenProps {
   onCategoryChange: (category: string | null) => void;
   onDifficultyChange: (difficulty: string | null) => void;
   onRequestPermission: () => void;
+  onRecheckPermission: () => void;
   onStart: () => void;
 }
 
@@ -41,6 +42,7 @@ export function InterviewHomeScreen({
   onCategoryChange,
   onDifficultyChange,
   onRequestPermission,
+  onRecheckPermission,
   onStart,
 }: InterviewHomeScreenProps) {
   const { t } = useTranslation();
@@ -62,6 +64,11 @@ export function InterviewHomeScreen({
 
   const isBehavioral = selectedCategory === "Behavioral";
   const canStart = (resumeState.isUploaded || isBehavioral) && !resumeState.isParsing && !isFetchingQuestion;
+  const permissionState = hasRecordingPermission === true
+    ? "granted"
+    : hasRecordingPermission === false
+      ? "denied"
+      : "prompt";
 
   return (
     <motion.div
@@ -204,8 +211,8 @@ export function InterviewHomeScreen({
                 : t("interview.uploadResume")}
         </motion.p>
 
-        {/* Recording permission request */}
-        {isRecordingSupported && hasRecordingPermission !== true && (
+        {/* Recording permission: prompt */}
+        {isRecordingSupported && permissionState === "prompt" && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -220,21 +227,68 @@ export function InterviewHomeScreen({
               className="px-8 py-3 border border-[#7A2E2E]/60 text-[#7A2E2E] text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:border-[#7A2E2E] hover:bg-[#7A2E2E] hover:text-[#FDF6F0] disabled:opacity-50"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              {isRequestingPermission ? t("interview.requesting") : t("interview.enableRecording")}
+              {isRequestingPermission ? t("interview.requesting") : t("interview.enableMicrophone")}
             </motion.button>
             <span
               className="text-[10px] tracking-[0.1em] text-[#1a1a1a]/40 text-center"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              {hasRecordingPermission === false
-                ? t("interview.permissionDenied")
-                : t("interview.requiredToReview")}
+              {t("interview.requiredToReview")}
             </span>
           </motion.div>
         )}
 
-        {/* Recording granted indicator */}
-        {isRecordingSupported && hasRecordingPermission === true && (
+        {/* Recording permission: denied */}
+        {isRecordingSupported && permissionState === "denied" && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+            className="w-full max-w-[min(100%,28rem)] flex flex-col items-center gap-3 border border-[#7A2E2E]/25 bg-[#7A2E2E]/[0.03] px-4 py-4"
+          >
+            <span
+              className="text-[10px] tracking-[0.15em] uppercase text-[#7A2E2E]/85"
+              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 500 }}
+            >
+              {t("interview.microphoneBlocked")}
+            </span>
+
+            <div className="w-full flex flex-col gap-2 border border-[#1a1a1a]/10 bg-[#FDF6F0]/70 px-3 py-3">
+              <p
+                className="text-[10px] tracking-[0.12em] uppercase text-[#1a1a1a]/55"
+                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 500 }}
+              >
+                {t("interview.howToEnable")}
+              </p>
+              <p
+                className="text-[11px] text-[#1a1a1a]/70"
+                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+              >
+                {t("interview.howToEnableIOS")}
+              </p>
+              <p
+                className="text-[11px] text-[#1a1a1a]/70"
+                style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+              >
+                {t("interview.howToEnableMac")}
+              </p>
+            </div>
+
+            <motion.button
+              onClick={onRecheckPermission}
+              disabled={isRequestingPermission}
+              whileHover={{ backgroundColor: "rgba(122, 46, 46, 0.08)" }}
+              whileTap={{ scale: 0.98 }}
+              className="px-6 py-2 border border-[#7A2E2E]/60 text-[#7A2E2E] text-[10px] tracking-[0.18em] uppercase transition-all duration-300 hover:border-[#7A2E2E] hover:bg-[#7A2E2E] hover:text-[#FDF6F0] disabled:opacity-50"
+              style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+            >
+              {isRequestingPermission ? t("interview.requesting") : t("interview.iEnabledIt")}
+            </motion.button>
+          </motion.div>
+        )}
+
+        {/* Recording permission: granted */}
+        {isRecordingSupported && permissionState === "granted" && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

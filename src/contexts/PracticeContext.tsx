@@ -92,6 +92,7 @@ interface PracticeContextValue {
   handleDifficultyChange: (difficulty: SessionDifficulty) => void;
   handleManualTimeChange: (type: "think" | "speak", delta: number) => void;
   handleRequestPermission: () => Promise<void>;
+  handleRecheckPermission: () => Promise<void>;
   handleSpin: () => Promise<void>;
   handleRevealComplete: () => void;
   handleStartSession: () => void;
@@ -173,6 +174,28 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
   const [hasRecordingPermission, setHasRecordingPermission] = useState<boolean | null>(null);
   const [isRequestingPermission, setIsRequestingPermission] = useState(false);
 
+  const applyPermissionState = useCallback((state: PermissionState | null) => {
+    if (state === "granted") {
+      setHasRecordingPermission(true);
+    } else if (state === "denied") {
+      setHasRecordingPermission(false);
+    } else {
+      setHasRecordingPermission(null);
+    }
+  }, []);
+
+  const readMicrophonePermissionState = useCallback(async (): Promise<PermissionState | null> => {
+    if (typeof navigator === "undefined") return null;
+    if (!("permissions" in navigator) || typeof navigator.permissions.query !== "function") return null;
+
+    try {
+      const status = await navigator.permissions.query({ name: "microphone" as PermissionName });
+      return status.state;
+    } catch {
+      return null;
+    }
+  }, []);
+
   // Keep microphone permission state in sync when the browser exposes the Permissions API.
   useEffect(() => {
     if (!isRecordingSupported) return;
@@ -182,15 +205,9 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
     let isMounted = true;
     let permissionStatus: PermissionStatus | null = null;
 
-    const applyPermissionState = (state: PermissionState) => {
+    const applyIfMounted = (state: PermissionState) => {
       if (!isMounted) return;
-      if (state === "granted") {
-        setHasRecordingPermission(true);
-      } else if (state === "denied") {
-        setHasRecordingPermission(false);
-      } else {
-        setHasRecordingPermission(null);
-      }
+      applyPermissionState(state);
     };
 
     const syncPermission = async () => {
@@ -198,8 +215,8 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
         const status = await navigator.permissions.query({ name: "microphone" as PermissionName });
         if (!isMounted) return;
         permissionStatus = status;
-        applyPermissionState(status.state);
-        status.onchange = () => applyPermissionState(status.state);
+        applyIfMounted(status.state);
+        status.onchange = () => applyIfMounted(status.state);
       } catch {
         // Some browsers (including older Safari versions) may not support microphone permission queries.
       }
@@ -211,7 +228,7 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
       isMounted = false;
       if (permissionStatus) permissionStatus.onchange = null;
     };
-  }, []);
+  }, [applyPermissionState]);
 
   // Ratings
   const [ratings, setRatings] = useState<Partial<SessionRatings>>({});
@@ -387,11 +404,32 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((track) => track.stop());
-      setHasRecordingPermission(true);
+      applyPermissionState("granted");
     } catch {
-      setHasRecordingPermission(false);
+      applyPermissionState("denied");
     }
     setIsRequestingPermission(false);
+  };
+
+  const handleRecheckPermission = async () => {
+    if (!isRecordingSupported) return;
+    setIsRequestingPermission(true);
+    try {
+      const permissionState = await readMicrophonePermissionState();
+      if (permissionState) {
+        applyPermissionState(permissionState);
+        return;
+      }
+
+      // Fallback for browsers without Permissions API support.
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      applyPermissionState("granted");
+    } catch {
+      applyPermissionState("denied");
+    } finally {
+      setIsRequestingPermission(false);
+    }
   };
 
   const handleSpin = async () => {
@@ -470,7 +508,7 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
     thinkTimer, speakTimer,
     playTock,
     handleModeCycle, handleLanguageChange, handleDifficultyChange, handleManualTimeChange,
-    handleRequestPermission, handleSpin, handleRevealComplete, handleStartSession,
+    handleRequestPermission, handleRecheckPermission, handleSpin, handleRevealComplete, handleStartSession,
     handleRateChange, handleDoneRating, handleCancel, handleNewSession,
     transitionToSpeak, transitionToPlayback,
   }), [
@@ -483,7 +521,7 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
     playTock,
     handleCancel, handleNewSession, transitionToSpeak, transitionToPlayback,
     handleSpin, handleRevealComplete, handleStartSession, handleDoneRating,
-    handleRequestPermission,
+    handleRequestPermission, handleRecheckPermission,
   ]);
 
   return <PracticeCtx.Provider value={value}>{children}</PracticeCtx.Provider>;
