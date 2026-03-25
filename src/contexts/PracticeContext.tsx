@@ -229,7 +229,7 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
     speakTimer.reset(effectiveSpeakSeconds);
     playToneShift();
     await sess.startRecording();
-    setTimeout(() => speakTimer.start(), 300);
+    speakTimer.start();
   }, [effectiveSpeakSeconds, thinkTimer, speakTimer, playToneShift, sess.startRecording]);
 
   const transitionToPlayback = useCallback(async () => {

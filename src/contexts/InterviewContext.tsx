@@ -139,7 +139,7 @@ export function InterviewProvider({ children }: { children: ReactNode }) {
     lastTickPlayedRef.current = -1;
     interviewSpeakTimer.reset(interviewAnswerSeconds);
     await sess.startRecording();
-    setTimeout(() => interviewSpeakTimer.start(), 300);
+    interviewSpeakTimer.start();
   }, [interviewThinkTimer, interviewSpeakTimer, interviewAnswerSeconds, sess.startRecording, app.setScreen]);
 
   const transitionToInterviewPlayback = useCallback(async () => {

@@ -53,6 +53,8 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     startTimeRef.current = Date.now();
     mediaRecorderRef.current = null;
 
+    let stream: MediaStream | null = null;
+
     try {
       // Check if in secure context (required for getUserMedia)
       if (!window.isSecureContext) {
@@ -87,7 +89,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
       console.log("Requesting microphone permission...");
       
       // Request microphone permission
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
@@ -135,7 +137,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
       // Handle errors
       mediaRecorder.onerror = (event) => {
         console.error("MediaRecorder error:", event);
-        stream.getTracks().forEach((track) => track.stop());
+        stream?.getTracks().forEach((track) => track.stop());
         setIsRecording(false);
         setAudio({
           available: false,
@@ -143,12 +145,54 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         });
       };
 
+      const waitForRecorderStart = new Promise<void>((resolveStart, rejectStart) => {
+        let settled = false;
+        let startTimeout: number | null = null;
+
+        const cleanupStartWait = () => {
+          if (startTimeout !== null) {
+            clearTimeout(startTimeout);
+          }
+          mediaRecorder.removeEventListener("start", onStart);
+          mediaRecorder.removeEventListener("error", onStartError);
+        };
+
+        const onStart = () => {
+          if (settled) return;
+          settled = true;
+          cleanupStartWait();
+          resolveStart();
+        };
+
+        const onStartError = () => {
+          if (settled) return;
+          settled = true;
+          cleanupStartWait();
+          rejectStart(new Error("MediaRecorder failed to start"));
+        };
+
+        startTimeout = window.setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          cleanupStartWait();
+          if (mediaRecorder.state === "recording") {
+            resolveStart();
+          } else {
+            rejectStart(new Error("MediaRecorder start timed out"));
+          }
+        }, 1500);
+
+        mediaRecorder.addEventListener("start", onStart, { once: true });
+        mediaRecorder.addEventListener("error", onStartError, { once: true });
+      });
+
       // Safari/WebKit can be fragile with tiny timeslices.
       if (isWebKit) {
         mediaRecorder.start();
       } else {
         mediaRecorder.start(250);
       }
+      await waitForRecorderStart;
       setIsRecording(true);
       
       setAudio({
@@ -159,6 +203,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
       console.log("Recording started successfully");
     } catch (error) {
       console.error("Failed to start recording:", error);
+      stream?.getTracks().forEach((track) => track.stop());
       
       // Determine error type
       let errorCode: AudioErrorCode = "REC_START_FAIL";
