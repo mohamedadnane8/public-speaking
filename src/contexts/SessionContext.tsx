@@ -5,7 +5,7 @@ import { useSession } from "../hooks/useSession";
 import { useTranscriptionPolling } from "../hooks/useTranscriptionPolling";
 import { useAppContext } from "./AppContext";
 import { apiClient } from "../lib/apiClient";
-import { recordSession, updateSession } from "../lib/interviewApi";
+import { recordSession, updateSession, triggerTranscription } from "../lib/interviewApi";
 import type { Session, SessionLanguage, SessionDifficulty } from "../types/session";
 
 // ─── Helper functions ───────────────────────────────────────────
@@ -268,6 +268,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (serverId) {
         setSavedServerSessionId(serverId);
         setEarlySaveStatus("saved");
+
+        // Fire-and-forget: trigger transcription in the background
+        // This is decoupled from session creation so a Deepgram failure doesn't block saving
+        triggerTranscription(serverId).catch((err) => {
+          console.warn("Background transcription trigger failed (will retry via polling):", err);
+        });
       } else {
         setEarlySaveStatus("failed");
       }

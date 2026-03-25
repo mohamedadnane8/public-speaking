@@ -119,8 +119,25 @@ export async function analyzeSession(
 }
 
 /**
+ * Trigger server-side transcription for a session that already has audio in S3.
+ * Returns 202 Accepted — transcription runs in the background.
+ * Poll GET /api/sessions/{id} to check transcriptionStatus.
+ */
+export async function triggerTranscription(sessionId: string): Promise<void> {
+  const response = await apiClient(`/api/sessions/${sessionId}/transcribe`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { message?: string } | null;
+    throw new Error(body?.message ?? `Trigger transcription failed (${response.status})`);
+  }
+}
+
+/**
  * Early save: upload audio + create session in one multipart request.
- * Server starts transcription immediately.
+ * Audio is saved to S3 and session is created. Transcription is NOT started —
+ * call triggerTranscription() separately after this succeeds.
  */
 export async function recordSession(
   audioFile: File,
