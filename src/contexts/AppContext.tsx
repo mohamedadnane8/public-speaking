@@ -46,6 +46,7 @@ interface AppContextValue {
   handleSkipBackward: () => void;
   handleSkipForward: () => void;
   handleReplay: (fileUri?: string) => void;
+  setFallbackDuration: (ms: number) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -130,11 +131,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const audioSrcRef = useRef<string | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
+  const setFallbackDuration = useCallback((ms: number) => {
+    if (ms > 0) setDuration(ms / 1000);
+  }, []);
+
   useEffect(() => {
     const updateProgress = () => {
       if (audioRef.current) {
         setCurrentTime(audioRef.current.currentTime);
-        setDuration(audioRef.current.duration || 0);
+        const rawDur = audioRef.current.duration;
+        if (isFinite(rawDur) && rawDur > 0) {
+          setDuration(rawDur);
+        }
+        if (audioRef.current.paused && audioRef.current.ended) {
+          setIsPlaying(false);
+        }
       }
       animationFrameRef.current = requestAnimationFrame(updateProgress);
     };
@@ -176,7 +187,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setIsPlaying(false);
       };
       audioRef.current.onloadedmetadata = () => {
-        setDuration(audioRef.current?.duration || 0);
+        const rawDur = audioRef.current?.duration;
+        if (rawDur && isFinite(rawDur) && rawDur > 0) {
+          setDuration(rawDur);
+        }
       };
     }
     return audioRef.current;
@@ -236,14 +250,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     user, isAuthenticated, isAuthLoading, isLocalhostEnv, login, devLogin, logout, refreshUser,
     isAccountMenuOpen, setIsAccountMenuOpen, accountMenuRef,
     isPlaying, setIsPlaying, currentTime, setCurrentTime, duration, setDuration, audioRef, audioSrcRef,
-    handlePlayToggle, handleSeek, handleSkipBackward, handleSkipForward, handleReplay,
+    handlePlayToggle, handleSeek, handleSkipBackward, handleSkipForward, handleReplay, setFallbackDuration,
   }), [
     screen, section, showNavbar,
     isAuthSuccessPage, isAuthErrorPage, authError, clearAuthParams,
     user, isAuthenticated, isAuthLoading, isLocalhostEnv, login, devLogin, logout, refreshUser,
     isAccountMenuOpen, accountMenuRef,
     isPlaying, currentTime, duration,
-    handlePlayToggle, handleSeek, handleSkipBackward, handleSkipForward, handleReplay,
+    handlePlayToggle, handleSeek, handleSkipBackward, handleSkipForward, handleReplay, setFallbackDuration,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

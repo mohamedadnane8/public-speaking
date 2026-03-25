@@ -387,7 +387,7 @@ function HistoryAudioPlayer({ session }: { session: Session }) {
   const [audioUrl, setAudioUrl] = useState<string | null>(session.audio?.fileUri ?? null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [duration, setDuration] = useState(() => (session.audio?.durationMs ?? 0) / 1000);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -420,7 +420,10 @@ function HistoryAudioPlayer({ session }: { session: Session }) {
     const update = () => {
       if (audioRef.current) {
         setCurrentTime(audioRef.current.currentTime);
-        setDuration(audioRef.current.duration || 0);
+        const rawDur = audioRef.current.duration;
+        if (isFinite(rawDur) && rawDur > 0) {
+          setDuration(rawDur);
+        }
       }
       rafRef.current = requestAnimationFrame(update);
     };
@@ -447,7 +450,12 @@ function HistoryAudioPlayer({ session }: { session: Session }) {
     if (!audioRef.current) {
       audioRef.current = new Audio(url);
       audioRef.current.onended = () => setIsPlaying(false);
-      audioRef.current.onloadedmetadata = () => setDuration(audioRef.current?.duration || 0);
+      audioRef.current.onloadedmetadata = () => {
+        const rawDur = audioRef.current?.duration;
+        if (rawDur && isFinite(rawDur) && rawDur > 0) {
+          setDuration(rawDur);
+        }
+      };
     }
     audioRef.current.play();
     setIsPlaying(true);

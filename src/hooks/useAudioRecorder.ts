@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import fixWebmDuration from "fix-webm-duration";
 import type { SessionAudio, AudioErrorCode } from "@/types/session";
 
 interface UseAudioRecorderReturn {
@@ -83,7 +84,9 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
       console.log("Microphone permission granted, creating MediaRecorder...");
       
       // Determine supported MIME type
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm")
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm")
         ? "audio/webm"
         : MediaRecorder.isTypeSupported("audio/mp4")
         ? "audio/mp4"
@@ -187,23 +190,38 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
 
           // Create blob from chunks
           const blobType = recorder.mimeType || "audio/webm";
-          const blob = new Blob(chunksRef.current, { type: blobType });
+          const rawBlob = new Blob(chunksRef.current, { type: blobType });
           const durationMs = Date.now() - startedAt;
-          
-          console.log("Recorded blob size:", blob.size, "chunks:", chunksRef.current.length);
-          
+
+          console.log("Recorded blob size:", rawBlob.size, "chunks:", chunksRef.current.length);
+
           // Only save if we have actual audio data
-          if (blob.size > 0 && chunksRef.current.length > 0) {
-            const fileUri = URL.createObjectURL(blob);
-            
-            setAudio((prev) => ({
-              ...prev,
-              available: true,
-              fileUri,
-              durationMs,
-              recordingEndedAt: new Date().toISOString(),
-            }));
-            console.log("Recording saved successfully");
+          if (rawBlob.size > 0 && chunksRef.current.length > 0) {
+            const saveBlob = (blob: Blob) => {
+              const fileUri = URL.createObjectURL(blob);
+              setAudio((prev) => ({
+                ...prev,
+                available: true,
+                fileUri,
+                durationMs,
+                recordingEndedAt: new Date().toISOString(),
+              }));
+              console.log("Recording saved successfully");
+              cleanup();
+            };
+
+            // Fix WebM duration metadata (MediaRecorder omits it, causing Infinity duration on playback)
+            if (blobType.includes("webm")) {
+              fixWebmDuration(rawBlob, durationMs)
+                .then((fixedBlob: Blob) => saveBlob(fixedBlob))
+                .catch((err: unknown) => {
+                  console.warn("fix-webm-duration failed, using raw blob:", err);
+                  saveBlob(rawBlob);
+                });
+            } else {
+              saveBlob(rawBlob);
+            }
+            return; // cleanup called inside saveBlob
           } else {
             setAudio((prev) => ({
               ...prev,
@@ -220,7 +238,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             errorCode: "REC_STOP_FAIL",
           }));
         }
-        
+
         cleanup();
       };
 
