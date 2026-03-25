@@ -116,6 +116,7 @@ interface SessionContextValue {
   usedWords: string[];
   createSession: ReturnType<typeof useSession>["createSession"];
   completeSession: ReturnType<typeof useSession>["completeSession"];
+  completeInterviewSession: ReturnType<typeof useSession>["completeInterviewSession"];
   cancelSession: ReturnType<typeof useSession>["cancelSession"];
   startRecording: ReturnType<typeof useSession>["startRecording"];
   stopRecording: ReturnType<typeof useSession>["stopRecording"];
@@ -431,7 +432,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   // Auto-save on SCORE_SUMMARY
   useEffect(() => {
-    if (app.screen !== "SCORE_SUMMARY" || !app.isAuthenticated || !sessionHook.session || sessionHook.session.status !== "COMPLETED") return;
+    if ((app.screen !== "SCORE_SUMMARY" && app.screen !== "INTERVIEW_SCORE") || !app.isAuthenticated || !sessionHook.session || sessionHook.session.status !== "COMPLETED") return;
     if (savedSessionId === sessionHook.session.id || saveAttemptedSessionId === sessionHook.session.id || isSaving) return;
     void saveSessionAndGetAdvice(sessionHook.session, { loginIfUnauthenticated: false, showToast: false });
   }, [app.screen, app.isAuthenticated, sessionHook.session, savedSessionId, saveAttemptedSessionId, isSaving, saveSessionAndGetAdvice]);

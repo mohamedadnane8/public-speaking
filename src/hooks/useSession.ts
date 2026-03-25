@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useAudioRecorder } from "./useAudioRecorder";
 import { useSessionStorage } from "./useSessionStorage";
-import type { Session, SessionRatings, Mode, SessionDifficulty, SessionLanguage } from "@/types/session";
+import type { Session, SessionRatings, InterviewRatings, Mode, SessionDifficulty, SessionLanguage } from "@/types/session";
 
 interface UseSessionReturn {
   session: Session | null;
@@ -18,6 +18,7 @@ interface UseSessionReturn {
     speakSeconds: number
   ) => Session;
   completeSession: (ratings: SessionRatings, overallScore: number, notes?: string, transcript?: string) => void;
+  completeInterviewSession: (interviewRatings: InterviewRatings, overallScore: number, notes?: string) => void;
   cancelSession: (reason: Session["cancelReason"]) => void;
   startRecording: () => Promise<void>;
   stopRecording: () => Promise<void>;
@@ -81,6 +82,26 @@ export function useSession(): UseSessionReturn {
     updateSession(session.id, completedSession);
   }, [session, audio, updateSession]);
 
+  const completeInterviewSession = useCallback((
+    interviewRatings: InterviewRatings,
+    overallScore: number,
+    notes?: string
+  ) => {
+    if (!session) return;
+
+    const completedSession: Session = {
+      ...session,
+      interviewRatings,
+      overallScore,
+      notes: notes?.trim() || undefined,
+      completedAt: new Date().toISOString(),
+      audio: audio || { available: false },
+    };
+
+    setSession(completedSession);
+    updateSession(session.id, completedSession);
+  }, [session, audio, updateSession]);
+
   const cancelSession = useCallback((reason: Session["cancelReason"]) => {
     if (session) {
       const cancelledSession: Session = {
@@ -119,6 +140,7 @@ export function useSession(): UseSessionReturn {
     usedWords,
     createSession,
     completeSession,
+    completeInterviewSession,
     cancelSession,
     startRecording,
     stopRecording,

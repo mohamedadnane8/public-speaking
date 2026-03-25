@@ -261,6 +261,11 @@ export function InterviewProvider({ children }: { children: ReactNode }) {
     if (!hasAllInterviewRatings(interviewRatings)) return;
     const overallScore = calculateInterviewScore(interviewRatings);
     setInterviewScore(overallScore);
+
+    // Persist interview ratings + score to the session so auto-save picks it up
+    sess.completeInterviewSession(interviewRatings as InterviewRatings, overallScore, interviewNotes);
+    sess.setSavedSessionId(null);
+    sess.setSaveAttemptedSessionId(null);
     app.setScreen("INTERVIEW_SCORE");
   };
 
