@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { CircularProgress } from "@/components/CircularProgress";
 
 interface ThinkScreenProps {
@@ -9,6 +10,7 @@ interface ThinkScreenProps {
 }
 
 export function ThinkScreen({ word, seconds, totalSeconds, onSkip }: ThinkScreenProps) {
+  const { t } = useTranslation();
   const progress = 1 - seconds / totalSeconds;
   const isLowTime = seconds <= 5;
 
@@ -32,7 +34,7 @@ export function ThinkScreen({ word, seconds, totalSeconds, onSkip }: ThinkScreen
             className="text-sm tracking-[0.2em] text-[#1a1a1a]/80"
             style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
           >
-            Think.
+            {t("think.title")}
           </span>
         </motion.div>
 
@@ -45,6 +47,7 @@ export function ThinkScreen({ word, seconds, totalSeconds, onSkip }: ThinkScreen
             size="md"
           >
             <div
+              dir="auto"
               className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-[0.08em] sm:tracking-[0.12em] text-[#1a1a1a] px-2"
               style={{
                 fontFamily: '"Cormorant Garamond", Georgia, serif',
@@ -64,7 +67,7 @@ export function ThinkScreen({ word, seconds, totalSeconds, onSkip }: ThinkScreen
           className="px-8 py-3 border border-[#1a1a1a]/60 text-[#1a1a1a] text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:border-[#1a1a1a]"
           style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
         >
-          SPEAK
+          {t("think.speak")}
         </motion.button>
       </div>
     </motion.div>

@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { RatingDots } from "@/components/RatingDots";
 import type { SessionRatings, RatingValue } from "@/types/session";
 
@@ -19,6 +20,7 @@ export function ReflectScreen({
   onNotesChange,
   onDone,
 }: ReflectScreenProps) {
+  const { t } = useTranslation();
   return (
     <motion.div
       key="reflect"
@@ -38,7 +40,7 @@ export function ReflectScreen({
             className="text-sm tracking-[0.2em] text-[#1a1a1a]/80"
             style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
           >
-            Reflect.
+            {t("reflect.title")}
           </span>
         </motion.div>
 
@@ -50,37 +52,37 @@ export function ReflectScreen({
           className="flex flex-col items-center gap-6"
         >
           <RatingDots
-            label="Opening"
+            label={t("reflect.opening")}
             value={ratings.opening}
             onChange={(v) => onRateChange("opening", v)}
           />
           <RatingDots
-            label="Structure"
+            label={t("reflect.structure")}
             value={ratings.structure}
             onChange={(v) => onRateChange("structure", v)}
           />
           <RatingDots
-            label="Ending"
+            label={t("reflect.ending")}
             value={ratings.ending}
             onChange={(v) => onRateChange("ending", v)}
           />
           <RatingDots
-            label="Confidence"
+            label={t("reflect.confidence")}
             value={ratings.confidence}
             onChange={(v) => onRateChange("confidence", v)}
           />
           <RatingDots
-            label="Clarity"
+            label={t("reflect.clarity")}
             value={ratings.clarity}
             onChange={(v) => onRateChange("clarity", v)}
           />
           <RatingDots
-            label="Authenticity"
+            label={t("reflect.authenticity")}
             value={ratings.authenticity}
             onChange={(v) => onRateChange("authenticity", v)}
           />
           <RatingDots
-            label="Language & Expression"
+            label={t("reflect.languageExpression")}
             value={ratings.languageExpression}
             onChange={(v) => onRateChange("languageExpression", v)}
           />
@@ -91,10 +93,10 @@ export function ReflectScreen({
               className="text-[9px] tracking-[0.15em] uppercase text-[#1a1a1a]/35 mb-3"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              Bonus
+              {t("reflect.bonus")}
             </span>
             <RatingDots
-              label="Passion & Novelty"
+              label={t("reflect.passionNovelty")}
               value={ratings.passion}
               onChange={(v) => onRateChange("passion", v)}
             />
@@ -112,12 +114,12 @@ export function ReflectScreen({
             className="block text-xs tracking-[0.2em] uppercase text-[#1a1a1a]/60 mb-3 text-center"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            Notes
+            {t("reflect.notes")}
           </label>
           <textarea
             value={notes}
             onChange={(e) => onNotesChange(e.target.value)}
-            placeholder="Add your thoughts..."
+            placeholder={t("reflect.addThoughts")}
             rows={4}
             className="w-full px-4 py-3 bg-transparent border border-[#1a1a1a]/20 text-sm text-[#1a1a1a]/80 placeholder:text-[#1a1a1a]/30 resize-none focus:outline-none focus:border-[#1a1a1a]/50 transition-colors"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
@@ -139,7 +141,7 @@ export function ReflectScreen({
           }`}
           style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
         >
-          DONE
+          {t("reflect.done")}
         </motion.button>
       </div>
     </motion.div>

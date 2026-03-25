@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import type { ModeConfig } from "@/lib/modes";
 import type { SessionDifficulty, SessionLanguage } from "@/types/session";
 
@@ -25,10 +26,10 @@ const LANGUAGE_OPTIONS: Array<{ value: SessionLanguage; label: string }> = [
   { value: "AR", label: "AR" },
 ];
 
-const DIFFICULTY_OPTIONS: Array<{ value: SessionDifficulty; label: string }> = [
-  { value: "EASY", label: "Easy" },
-  { value: "MEDIUM", label: "Medium" },
-  { value: "HARD", label: "Hard" },
+const DIFFICULTY_OPTIONS: Array<{ value: SessionDifficulty; labelKey: string }> = [
+  { value: "EASY", labelKey: "home.easy" },
+  { value: "MEDIUM", labelKey: "home.medium" },
+  { value: "HARD", labelKey: "home.hard" },
 ];
 
 export function HomeScreen({
@@ -47,6 +48,7 @@ export function HomeScreen({
   onRequestPermission,
   onSpin,
 }: HomeScreenProps) {
+  const { t } = useTranslation();
   const effectiveThinkSeconds = modeConfig.name === "MANUAL" ? manualThinkSeconds : modeConfig.thinkSeconds;
   const effectiveSpeakSeconds = modeConfig.name === "MANUAL" ? manualSpeakSeconds : modeConfig.speakSeconds;
 
@@ -68,7 +70,7 @@ export function HomeScreen({
               className="text-3xl sm:text-4xl md:text-5xl uppercase tracking-[0.2em] sm:tracking-[0.35em] text-[#1a1a1a]/75"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              Think
+              {t("home.think")}
             </span>
             {modeConfig.name === "MANUAL" ? (
               <div className="flex items-center gap-2">
@@ -109,7 +111,7 @@ export function HomeScreen({
               className="text-3xl sm:text-4xl md:text-5xl uppercase tracking-[0.2em] sm:tracking-[0.35em] text-[#1a1a1a]/75"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              Speak
+              {t("home.speak")}
             </span>
             {modeConfig.name === "MANUAL" ? (
               <div className="flex items-center gap-2">
@@ -152,9 +154,9 @@ export function HomeScreen({
               type="button"
               onClick={() => onModeCycle(-1)}
               className="p-1 text-[#1a1a1a]/35 hover:text-[#1a1a1a]/70 transition-colors"
-              aria-label="Previous mode"
+              aria-label={t("home.previousMode")}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <svg className="rtl-flip" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <path d="M15 18l-6-6 6-6" />
               </svg>
             </button>
@@ -162,15 +164,15 @@ export function HomeScreen({
               className="text-lg tracking-[0.15em] text-[#1a1a1a]/90 min-w-[10rem] text-center"
               style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}
             >
-              {modeConfig.name}
+              {t(`modes.${modeConfig.name}`)}
             </span>
             <button
               type="button"
               onClick={() => onModeCycle(1)}
               className="p-1 text-[#1a1a1a]/35 hover:text-[#1a1a1a]/70 transition-colors"
-              aria-label="Next mode"
+              aria-label={t("home.nextMode")}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <svg className="rtl-flip" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <path d="M9 18l6-6-6-6" />
               </svg>
             </button>
@@ -179,7 +181,7 @@ export function HomeScreen({
             className="text-xs tracking-[0.1em] text-[#1a1a1a]/45"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            Trains: {modeConfig.descriptor}
+            {t("home.trains", { descriptor: t(`modes.desc.${modeConfig.name}`) })}
           </span>
         </div>
 
@@ -216,7 +218,7 @@ export function HomeScreen({
                 }`}
                 style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
               >
-                {option.label}
+                {t(option.labelKey)}
               </button>
             ))}
           </div>
@@ -250,7 +252,7 @@ export function HomeScreen({
           className="text-sm tracking-[0.15em] text-[#1a1a1a]/80"
           style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
         >
-          Spin the word.
+          {t("home.spinTheWord")}
         </motion.p>
 
         {/* Recording permission request */}
@@ -269,15 +271,15 @@ export function HomeScreen({
               className="px-8 py-3 border border-[#7A2E2E]/60 text-[#7A2E2E] text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:border-[#7A2E2E] hover:bg-[#7A2E2E] hover:text-[#FDF6F0] disabled:opacity-50"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              {isRequestingPermission ? "Requesting..." : "Enable Recording"}
+              {isRequestingPermission ? t("home.requesting") : t("home.enableRecording")}
             </motion.button>
             <span
               className="text-[10px] tracking-[0.1em] text-[#1a1a1a]/40 text-center"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              {hasRecordingPermission === false 
-                ? "Permission denied — you can still practice without recording" 
-                : "Required to review your practice"}
+              {hasRecordingPermission === false
+                ? t("home.permissionDenied")
+                : t("home.requiredToReview")}
             </span>
           </motion.div>
         )}
@@ -295,7 +297,7 @@ export function HomeScreen({
               className="text-[10px] tracking-[0.15em] uppercase text-[#2E7A4E]/80"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              Recording enabled
+              {t("home.recordingEnabled")}
             </span>
           </motion.div>
         )}
@@ -310,7 +312,7 @@ export function HomeScreen({
           className="px-12 py-4 border border-[#1a1a1a]/60 text-[#1a1a1a] text-xs tracking-[0.35em] uppercase transition-all duration-300 hover:border-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-[#FDF6F0]"
           style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
         >
-          SPIN
+          {t("home.spin")}
         </motion.button>
 
         {/* Feature indicators */}
@@ -325,7 +327,7 @@ export function HomeScreen({
               className="text-[10px] tracking-[0.1em] text-[#7A2E2E]/70 text-center"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              Recording not available — use HTTPS
+              {t("home.recordingNotAvailable")}
             </span>
           )}
         </motion.div>

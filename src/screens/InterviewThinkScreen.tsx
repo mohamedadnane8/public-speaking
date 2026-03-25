@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { CircularProgress } from "@/components/CircularProgress";
 
 interface InterviewThinkScreenProps {
@@ -14,6 +15,7 @@ export function InterviewThinkScreen({
   totalSeconds,
   onSkip,
 }: InterviewThinkScreenProps) {
+  const { t } = useTranslation();
   const progress = 1 - seconds / totalSeconds;
   const isLowTime = seconds <= 5;
 
@@ -40,7 +42,7 @@ export function InterviewThinkScreen({
               fontWeight: 400,
             }}
           >
-            Think.
+            {t("interviewThink.title")}
           </span>
         </motion.div>
 
@@ -53,6 +55,7 @@ export function InterviewThinkScreen({
             size="md"
           >
             <div
+              dir="auto"
               className="text-base sm:text-lg md:text-xl leading-relaxed tracking-[0.02em] text-[#1a1a1a] px-6 text-center max-w-[16rem] sm:max-w-[18rem]"
               style={{
                 fontFamily: '"Cormorant Garamond", Georgia, serif',
@@ -72,7 +75,7 @@ export function InterviewThinkScreen({
           className="px-8 py-3 border border-[#1a1a1a]/60 text-[#1a1a1a] text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:border-[#1a1a1a]"
           style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
         >
-          ANSWER
+          {t("interviewThink.answer")}
         </motion.button>
       </div>
     </motion.div>

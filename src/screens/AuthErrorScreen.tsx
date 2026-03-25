@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 
 interface AuthErrorScreenProps {
   error?: string | null;
@@ -11,21 +12,23 @@ export function AuthErrorScreen({
   onGoHome, 
   onRetry 
 }: AuthErrorScreenProps) {
+  const { t } = useTranslation();
+
   const getErrorMessage = (err: string | null | undefined): string => {
-    if (!err) return "Something went wrong during sign in.";
-    
+    if (!err) return t("auth.errorDefault");
+
     // Common OAuth error messages
     const errorMap: Record<string, string> = {
-      "access_denied": "You declined to authorize the app.",
-      "invalid_request": "Invalid authentication request.",
-      "invalid_scope": "Invalid scope requested.",
-      "server_error": "Authentication server error. Please try again later.",
-      "temporarily_unavailable": "Authentication service is temporarily unavailable.",
-      "state_mismatch": "Security validation failed. Please try again.",
-      "no_code": "Authorization code missing. Please try again.",
-      "token_exchange_failed": "Failed to complete authentication. Please try again.",
+      "access_denied": t("auth.errorAccessDenied"),
+      "invalid_request": t("auth.errorInvalidRequest"),
+      "invalid_scope": t("auth.errorInvalidScope"),
+      "server_error": t("auth.errorServerError"),
+      "temporarily_unavailable": t("auth.errorUnavailable"),
+      "state_mismatch": t("auth.errorStateMismatch"),
+      "no_code": t("auth.errorCodeMissing"),
+      "token_exchange_failed": t("auth.errorTokenExchange"),
     };
-    
+
     return errorMap[err] || err;
   };
 
@@ -74,7 +77,7 @@ export function AuthErrorScreen({
             className="text-2xl tracking-[0.1em] text-[#1a1a1a]"
             style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
           >
-            Sign In Failed
+            {t("auth.signInFailed")}
           </h1>
           
           <p
@@ -97,7 +100,7 @@ export function AuthErrorScreen({
             className="px-8 py-3 bg-[#1a1a1a] text-[#FDF6F0]/90 text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:bg-[#1a1a1a]/90"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            Try Again
+            {t("auth.tryAgain")}
           </button>
           
           <button
@@ -105,7 +108,7 @@ export function AuthErrorScreen({
             className="text-[11px] tracking-[0.15em] uppercase text-[#1a1a1a]/40 hover:text-[#1a1a1a]/70 transition-colors"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            Go Home
+            {t("auth.goHome")}
           </button>
         </motion.div>
       </div>

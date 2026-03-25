@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { useAppContext } from "../contexts/AppContext";
 import { useSessionContext } from "../contexts/SessionContext";
 import { HistoryScreen } from "../screens/HistoryScreen";
@@ -13,6 +14,7 @@ const DEFAULT_DIFFICULTY: SessionDifficulty = "MEDIUM";
 export function UtilityScreens() {
   const app = useAppContext();
   const sess = useSessionContext();
+  const { t } = useTranslation();
   return (
     <>
       {/* History */}
@@ -25,8 +27,8 @@ export function UtilityScreens() {
           />
         ) : (
           <LoginPrompt
-            title="History"
-            description="Sign in to view your practice sessions, scores, and reflections."
+            title={t("history.loginTitle")}
+            description={t("history.loginDescription")}
             onLogin={() => app.login()}
           />
         )
@@ -38,8 +40,8 @@ export function UtilityScreens() {
           <FeatureRequestScreen isAuthenticated={app.isAuthenticated} />
         ) : (
           <LoginPrompt
-            title="Request Feature"
-            description="Sign in to submit feature requests and view your previous submissions."
+            title={t("feature.loginTitle")}
+            description={t("feature.loginDescription")}
             onLogin={() => app.login()}
           />
         )
@@ -98,6 +100,7 @@ export function UtilityScreens() {
 // ─── Shared login prompt ────────────────────────────────────────
 
 function LoginPrompt({ title, description, onLogin }: { title: string; description: string; onLogin: () => void }) {
+  const { t } = useTranslation();
   return (
     <motion.div
       key={`${title}-login`}
@@ -125,7 +128,7 @@ function LoginPrompt({ title, description, onLogin }: { title: string; descripti
           className="px-8 py-3 border border-[#1a1a1a]/60 text-[#1a1a1a] text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:border-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-[#FDF6F0]"
           style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
         >
-          Login
+          {t("nav.login")}
         </button>
       </div>
     </motion.div>

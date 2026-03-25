@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { CircularProgress } from "@/components/CircularProgress";
 import type { SessionAudio } from "@/types/session";
 
@@ -11,14 +12,15 @@ interface SpeakScreenProps {
 }
 
 export function SpeakScreen({ word, seconds, totalSeconds, isRecording, audio }: SpeakScreenProps) {
+  const { t } = useTranslation();
   const progress = 1 - seconds / totalSeconds;
   const isLowTime = seconds <= 5;
 
   const recordingLabel = isRecording
-    ? "Recording"
+    ? t("speak.recording")
     : audio?.available === false
-    ? "No recording"
-    : "Starting...";
+    ? t("speak.noRecording")
+    : t("speak.starting");
 
   return (
     <motion.div
@@ -40,7 +42,7 @@ export function SpeakScreen({ word, seconds, totalSeconds, isRecording, audio }:
             className="text-sm tracking-[0.2em] text-[#1a1a1a]/80"
             style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
           >
-            Speak.
+            {t("speak.title")}
           </span>
         </motion.div>
 
@@ -53,6 +55,7 @@ export function SpeakScreen({ word, seconds, totalSeconds, isRecording, audio }:
             size="md"
           >
             <div
+              dir="auto"
               className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-[0.08em] sm:tracking-[0.12em] text-[#1a1a1a] px-2"
               style={{
                 fontFamily: '"Cormorant Garamond", Georgia, serif',

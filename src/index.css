@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@200;300;400;500&family=Playfair+Display:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@200;300;400;500&family=Playfair+Display:wght@400;500&family=Noto+Sans+Arabic:wght@300;400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -77,6 +77,54 @@ button:focus-visible,
 a:focus-visible {
   outline: 1px solid rgba(26, 26, 26, 0.3);
   outline-offset: 2px;
+}
+
+/* RTL support for Arabic */
+[dir="rtl"] {
+  font-family: 'Noto Sans Arabic', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 115%;
+  line-height: 1.6;
+}
+
+/* Scale down headings slightly (they already get the 115% base bump) */
+[dir="rtl"] [style*="Cormorant Garamond"] {
+  font-family: 'Noto Sans Arabic', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  line-height: 1.4;
+}
+
+/* Ensure small UI labels remain legible */
+[dir="rtl"] .text-\[9px\],
+[dir="rtl"] .text-\[10px\],
+[dir="rtl"] .text-\[11px\] {
+  font-size: max(12px, 1em);
+}
+
+[dir="rtl"] [class*="tracking-["] {
+  letter-spacing: normal !important;
+}
+
+[dir="rtl"] .tracking-wide,
+[dir="rtl"] .tracking-wider,
+[dir="rtl"] .tracking-widest {
+  letter-spacing: normal !important;
+}
+
+[dir="rtl"] .text-left {
+  text-align: right;
+}
+
+[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .border-l-2 {
+  border-left-width: 0;
+  border-right-width: 2px;
+}
+
+[dir="rtl"] .pl-3 {
+  padding-left: 0;
+  padding-right: 0.75rem;
 }
 
 /* Reduced motion */

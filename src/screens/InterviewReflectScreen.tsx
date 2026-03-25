@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { RatingDots } from "@/components/RatingDots";
 import type { InterviewRatings, RatingValue } from "@/types/session";
 
@@ -19,6 +20,8 @@ export function InterviewReflectScreen({
   onNotesChange,
   onDone,
 }: InterviewReflectScreenProps) {
+  const { t } = useTranslation();
+
   return (
     <motion.div
       key="interview-reflect"
@@ -38,7 +41,7 @@ export function InterviewReflectScreen({
             className="text-sm tracking-[0.2em] text-[#1a1a1a]/80"
             style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
           >
-            Reflect.
+            {t("interviewReflect.title")}
           </span>
         </motion.div>
 
@@ -50,32 +53,32 @@ export function InterviewReflectScreen({
           className="flex flex-col items-center gap-6"
         >
           <RatingDots
-            label="Relevance"
+            label={t("interviewReflect.relevance")}
             value={ratings.relevance}
             onChange={(v) => onRateChange("relevance", v)}
           />
           <RatingDots
-            label="Situation & Stakes"
+            label={t("interviewReflect.situationStakes")}
             value={ratings.situationStakes}
             onChange={(v) => onRateChange("situationStakes", v)}
           />
           <RatingDots
-            label="Personal Action"
+            label={t("interviewReflect.personalAction")}
             value={ratings.action}
             onChange={(v) => onRateChange("action", v)}
           />
           <RatingDots
-            label="Result & Impact"
+            label={t("interviewReflect.resultImpact")}
             value={ratings.resultImpact}
             onChange={(v) => onRateChange("resultImpact", v)}
           />
           <RatingDots
-            label="Delivery & Composure"
+            label={t("interviewReflect.deliveryComposure")}
             value={ratings.deliveryComposure}
             onChange={(v) => onRateChange("deliveryComposure", v)}
           />
           <RatingDots
-            label="Conciseness"
+            label={t("interviewReflect.conciseness")}
             value={ratings.conciseness}
             onChange={(v) => onRateChange("conciseness", v)}
           />
@@ -92,12 +95,12 @@ export function InterviewReflectScreen({
             className="block text-xs tracking-[0.2em] uppercase text-[#1a1a1a]/60 mb-3 text-center"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            Notes
+            {t("interviewReflect.notes")}
           </label>
           <textarea
             value={notes}
             onChange={(e) => onNotesChange(e.target.value)}
-            placeholder="Add your thoughts..."
+            placeholder={t("interviewReflect.addThoughts")}
             rows={4}
             className="w-full px-4 py-3 bg-transparent border border-[#1a1a1a]/20 text-sm text-[#1a1a1a]/80 placeholder:text-[#1a1a1a]/30 resize-none focus:outline-none focus:border-[#1a1a1a]/50 transition-colors"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
@@ -119,7 +122,7 @@ export function InterviewReflectScreen({
           }`}
           style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
         >
-          DONE
+          {t("interviewReflect.done")}
         </motion.button>
       </div>
     </motion.div>

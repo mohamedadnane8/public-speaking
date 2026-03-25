@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo } 
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { useSession } from "../hooks/useSession";
+import { useTranscriptionPolling } from "../hooks/useTranscriptionPolling";
 import { useAppContext } from "./AppContext";
 import { apiClient } from "../lib/apiClient";
 import { recordSession, updateSession, triggerTranscription } from "../lib/interviewApi";
@@ -140,6 +141,9 @@ interface SessionContextValue {
   handleDeleteHistorySession: (id: string) => Promise<void>;
   handleReplayHistoryAudio: (historySession: Session) => Promise<void>;
 
+  // Transcription polling
+  transcriptionPolling: ReturnType<typeof useTranscriptionPolling>;
+
   // Reset helpers
   resetSaveState: () => void;
   setSavedServerSessionId: React.Dispatch<React.SetStateAction<string | null>>;
@@ -168,6 +172,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [saveAttemptedSessionId, setSaveAttemptedSessionId] = useState<string | null>(null);
   const [earlySaveStatus, setEarlySaveStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [remoteSessions, setRemoteSessions] = useState<Session[] | null>(null);
+
+  // Transcription polling — starts when we have a server session ID and are on PLAYBACK or later
+  const transcriptionPolling = useTranscriptionPolling(
+    savedServerSessionId,
+    earlySaveStatus === "saved" && (app.screen === "PLAYBACK" || app.screen === "REFLECT" || app.screen === "SCORE_SUMMARY"),
+  );
 
   // Remote sessions
   const loadRemoteSessions = useCallback(async () => {
@@ -470,6 +480,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     ...sessionHook,
     isSaving, savedSessionId, savedServerSessionId, savedSpeechAnalysis, earlySaveStatus,
     remoteSessions, historySessions,
+    transcriptionPolling,
     saveSessionEarly, saveSessionAndGetAdvice, loadRemoteSessions,
     handleDeleteHistorySession, handleReplayHistoryAudio,
     resetSaveState,
@@ -478,6 +489,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     sessionHook,
     isSaving, savedSessionId, savedServerSessionId, savedSpeechAnalysis, earlySaveStatus,
     remoteSessions, historySessions,
+    transcriptionPolling,
     saveSessionEarly, saveSessionAndGetAdvice, loadRemoteSessions,
     handleDeleteHistorySession, handleReplayHistoryAudio,
     resetSaveState,

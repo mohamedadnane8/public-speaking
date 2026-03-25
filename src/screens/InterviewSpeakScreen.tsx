@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { CircularProgress } from "@/components/CircularProgress";
 import type { SessionAudio } from "@/types/session";
 
@@ -17,14 +18,15 @@ export function InterviewSpeakScreen({
   isRecording,
   audio,
 }: InterviewSpeakScreenProps) {
+  const { t } = useTranslation();
   const progress = 1 - seconds / totalSeconds;
   const isLowTime = seconds <= 5;
 
   const recordingLabel = isRecording
-    ? "Recording"
+    ? t("interviewSpeak.recording")
     : audio?.available === false
-      ? "No recording"
-      : "Starting...";
+      ? t("interviewSpeak.noRecording")
+      : t("interviewSpeak.starting");
 
   return (
     <motion.div
@@ -49,7 +51,7 @@ export function InterviewSpeakScreen({
               fontWeight: 400,
             }}
           >
-            Answer.
+            {t("interviewSpeak.title")}
           </span>
         </motion.div>
 
@@ -62,6 +64,7 @@ export function InterviewSpeakScreen({
             size="md"
           >
             <div
+              dir="auto"
               className="text-base sm:text-lg md:text-xl leading-relaxed tracking-[0.02em] text-[#1a1a1a] px-6 text-center max-w-[16rem] sm:max-w-[18rem]"
               style={{
                 fontFamily: '"Cormorant Garamond", Georgia, serif',

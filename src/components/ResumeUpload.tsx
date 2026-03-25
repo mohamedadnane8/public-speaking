@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -39,6 +40,7 @@ export function ResumeUpload({
   nextSlotAt,
   onFileSelected,
 }: ResumeUploadProps) {
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -60,15 +62,15 @@ export function ResumeUpload({
       setValidationError(null);
       const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
       if (!ACCEPTED_EXTENSIONS.includes(ext)) {
-        setValidationError("Only PDF and Word (.docx) files are accepted.");
+        setValidationError(t("resume.invalidFileType"));
         return;
       }
       if (!ACCEPTED_TYPES.includes(file.type) && file.type !== "") {
-        setValidationError("Invalid file type. Please upload a PDF or Word document.");
+        setValidationError(t("resume.invalidFileTypeToast"));
         return;
       }
       if (file.size > MAX_FILE_SIZE) {
-        setValidationError("File is too large. Maximum size is 10 MB.");
+        setValidationError(t("resume.fileTooLarge"));
         return;
       }
       onFileSelected(file);
@@ -143,7 +145,7 @@ export function ResumeUpload({
               className="text-[10px] tracking-[0.15em] uppercase text-[#1a1a1a]/50"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              Analyzing resume...
+              {t("resume.analyzing")}
             </span>
           </motion.div>
         ) : hasResume ? (
@@ -163,7 +165,7 @@ export function ResumeUpload({
               className="text-[11px] tracking-[0.08em] text-[#1a1a1a]/55 truncate max-w-[10rem]"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              {uploadedFileName ?? "Resume uploaded"}
+              {uploadedFileName ?? t("resume.uploaded")}
             </span>
             <button
               type="button"
@@ -171,7 +173,7 @@ export function ResumeUpload({
               className="text-[10px] tracking-[0.1em] uppercase text-[#1a1a1a]/40 hover:text-[#1a1a1a]/70 transition-colors underline underline-offset-2"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              Replace
+              {t("resume.replace")}
             </button>
           </motion.div>
         ) : (
@@ -198,13 +200,13 @@ export function ResumeUpload({
               className="text-[10px] tracking-[0.12em] uppercase text-[#1a1a1a]/50 text-center"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              Drop resume here
+              {t("resume.dropHere")}
             </span>
             <span
               className="text-[9px] tracking-[0.08em] text-[#1a1a1a]/30"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              PDF or Word — max 10 MB
+              {t("resume.pdfOrWord")}
             </span>
           </motion.div>
         )}
@@ -215,7 +217,7 @@ export function ResumeUpload({
           className="text-[9px] tracking-[0.08em] text-[#1a1a1a]/35"
           style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
         >
-          {uploadsUsed}/{maxUploadsPerWeek} uploads this week
+          {t("resume.uploadsThisWeek", { used: uploadsUsed, max: maxUploadsPerWeek })}
         </span>
       )}
 
@@ -224,7 +226,7 @@ export function ResumeUpload({
           className="text-[10px] tracking-[0.1em] text-[#7A2E2E]/70 text-center"
           style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
         >
-          Weekly limit reached — next upload in {nextSlotText}
+          {t("resume.weeklyLimitReached", { time: nextSlotText })}
         </span>
       )}
 

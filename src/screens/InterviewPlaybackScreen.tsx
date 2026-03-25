@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import type { SessionAudio } from "@/types/session";
 
@@ -31,13 +32,15 @@ export function InterviewPlaybackScreen({
   onSkipForward,
   onContinue,
 }: InterviewPlaybackScreenProps) {
+  const { t } = useTranslation();
+
   const getErrorMessage = (errorCode?: string) => {
     switch (errorCode) {
-      case "MIC_PERMISSION": return "Microphone permission denied";
-      case "REC_START_FAIL": return "Failed to start recording";
-      case "REC_STOP_FAIL": return "Failed to save recording";
-      case "NO_AUDIO": return "No audio captured";
-      case "INTERRUPTED": return "Recording interrupted";
+      case "MIC_PERMISSION": return t("interviewPlayback.errorMicPermission");
+      case "REC_START_FAIL": return t("interviewPlayback.errorRecStartFail");
+      case "REC_STOP_FAIL": return t("interviewPlayback.errorRecStopFail");
+      case "NO_AUDIO": return t("interviewPlayback.errorNoAudio");
+      case "INTERRUPTED": return t("interviewPlayback.errorInterrupted");
       default: return "";
     }
   };
@@ -59,6 +62,7 @@ export function InterviewPlaybackScreen({
           className="text-center px-2"
         >
           <p
+            dir="auto"
             className="text-xl sm:text-2xl md:text-3xl leading-relaxed text-[#1a1a1a]/90"
             style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
           >
@@ -92,7 +96,7 @@ export function InterviewPlaybackScreen({
                 className="text-sm text-[#1a1a1a]/50"
                 style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
               >
-                Recording unavailable
+                {t("interviewPlayback.recordingUnavailable")}
               </span>
               {audio?.errorCode && (
                 <span
@@ -111,7 +115,7 @@ export function InterviewPlaybackScreen({
             className="text-[11px] tracking-[0.15em] uppercase text-[#1a1a1a]/55 hover:text-[#1a1a1a]/80 transition-colors px-4 py-2 hover:bg-[#1a1a1a]/5 rounded cursor-pointer"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            Continue
+            {t("interviewPlayback.continue")}
           </button>
         </div>
 
@@ -127,9 +131,10 @@ export function InterviewPlaybackScreen({
               className="text-xs tracking-[0.2em] uppercase text-[#1a1a1a]/60 mb-3 text-center"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              Transcript
+              {t("interviewPlayback.transcript")}
             </h3>
             <div
+              dir="auto"
               className="px-4 py-3 bg-[#1a1a1a]/5 border border-[#1a1a1a]/10 text-sm text-[#1a1a1a]/80 max-h-40 overflow-y-auto"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >

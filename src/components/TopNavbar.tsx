@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 
 export type NavSection = "GENERAL_PRACTICE" | "INTERVIEWS" | "HISTORY" | "FEATURE_REQUEST";
@@ -13,10 +14,10 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { section: "GENERAL_PRACTICE", label: "General Practice", shortLabel: "General Practice" },
-  { section: "INTERVIEWS", label: "Interview Practice", shortLabel: "Interview Practice" },
-  { section: "HISTORY", label: "History", shortLabel: "History", secondary: true },
-  { section: "FEATURE_REQUEST", label: "Request Feature", shortLabel: "Feedback", secondary: true },
+  { section: "GENERAL_PRACTICE", label: "nav.generalPractice", shortLabel: "nav.generalPractice" },
+  { section: "INTERVIEWS", label: "nav.interviewPractice", shortLabel: "nav.interviewPractice" },
+  { section: "HISTORY", label: "nav.history", shortLabel: "nav.history", secondary: true },
+  { section: "FEATURE_REQUEST", label: "nav.requestFeature", shortLabel: "nav.requestFeature", secondary: true },
 ];
 
 interface TopNavbarProps {
@@ -48,6 +49,7 @@ export function TopNavbar({
   onLogout,
   accountMenuRef,
 }: TopNavbarProps) {
+  const { t } = useTranslation();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   const primaryItems = NAV_ITEMS.filter((item) => !item.secondary);
@@ -83,8 +85,8 @@ export function TopNavbar({
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
               {/* Short label on mobile, full on sm+ */}
-              <span className="sm:hidden">{item.shortLabel}</span>
-              <span className="hidden sm:inline">{item.label}</span>
+              <span className="sm:hidden">{t(item.shortLabel)}</span>
+              <span className="hidden sm:inline">{t(item.label)}</span>
               {isActive && (
                 <motion.div
                   layoutId="nav-indicator"
@@ -112,7 +114,7 @@ export function TopNavbar({
               }`}
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              {item.label}
+              {t(item.label)}
               {isActive && (
                 <motion.div
                   layoutId="nav-indicator"
@@ -136,7 +138,7 @@ export function TopNavbar({
             }`}
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            More
+            {t("nav.more")}
             {secondaryItems.some((i) => i.section === activeSection) && (
               <motion.div
                 layoutId="nav-indicator"
@@ -180,7 +182,7 @@ export function TopNavbar({
                         }`}
                         style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                       >
-                        {item.label}
+                        {t(item.label)}
                       </button>
                     );
                   })}
@@ -236,7 +238,7 @@ export function TopNavbar({
                       style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                       role="menuitem"
                     >
-                      Log out
+                      {t("nav.logout")}
                     </button>
                   </div>
                 )}
@@ -249,7 +251,7 @@ export function TopNavbar({
                     className="text-[10px] sm:text-[11px] tracking-[0.12em] sm:tracking-[0.15em] text-[#2E7A4E]/70 hover:text-[#2E7A4E] transition-colors uppercase whitespace-nowrap"
                     style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                   >
-                    Dev
+                    {t("nav.dev")}
                   </button>
                 )}
                 <button
@@ -257,7 +259,7 @@ export function TopNavbar({
                   className="text-[10px] sm:text-[11px] tracking-[0.12em] sm:tracking-[0.15em] text-[#1a1a1a]/60 hover:text-[#1a1a1a] transition-colors uppercase whitespace-nowrap"
                   style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                 >
-                  Login
+                  {t("nav.login")}
                 </button>
               </div>
             )}

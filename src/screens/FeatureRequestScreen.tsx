@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/apiClient";
 
@@ -30,6 +31,7 @@ interface FeatureRequestScreenProps {
 }
 
 export function FeatureRequestScreen({ isAuthenticated }: FeatureRequestScreenProps) {
+  const { t } = useTranslation();
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingRequests, setIsLoadingRequests] = useState(true);
@@ -52,7 +54,7 @@ export function FeatureRequestScreen({ isAuthenticated }: FeatureRequestScreenPr
       setRequests(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Failed to load feature requests:", error);
-      toast.error("Unable to load previous requests.");
+      toast.error(t("feature.unableToLoad"));
     } finally {
       setIsLoadingRequests(false);
     }
@@ -69,7 +71,7 @@ export function FeatureRequestScreen({ isAuthenticated }: FeatureRequestScreenPr
   const handleSubmit = useCallback(async () => {
     const trimmedMessage = message.trim();
     if (trimmedMessage.length < 3) {
-      toast.error("Please write at least 3 characters.");
+      toast.error(t("feature.minCharacters"));
       return;
     }
 
@@ -93,7 +95,7 @@ export function FeatureRequestScreen({ isAuthenticated }: FeatureRequestScreenPr
       const created = (await response.json()) as FeatureRequestItem;
       setRequests((prev) => [created, ...prev]);
       setMessage("");
-      toast.success("Feature request sent.");
+      toast.success(t("feature.sent"));
     } catch (error) {
       console.error("Failed to submit feature request:", error);
       const err = error as Error;
@@ -118,19 +120,19 @@ export function FeatureRequestScreen({ isAuthenticated }: FeatureRequestScreenPr
             className="text-[10px] uppercase tracking-[0.25em] text-[#1a1a1a]/45"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            Product Feedback
+            {t("feature.productFeedback")}
           </p>
           <h1
             className="text-4xl text-[#1a1a1a]"
             style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}
           >
-            Request a Feature
+            {t("feature.title")}
           </h1>
           <p
             className="text-sm text-[#1a1a1a]/55"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            Share what would make your speaking practice better.
+            {t("feature.description")}
           </p>
         </div>
 
@@ -140,14 +142,14 @@ export function FeatureRequestScreen({ isAuthenticated }: FeatureRequestScreenPr
             className="text-[10px] uppercase tracking-[0.2em] text-[#1a1a1a]/45"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            Your idea
+            {t("feature.yourIdea")}
           </label>
 
           <textarea
             id="feature-message"
             value={message}
             onChange={(event) => setMessage(event.target.value.slice(0, MAX_MESSAGE_LENGTH))}
-            placeholder="Example: Add AI feedback history filters by score trend..."
+            placeholder={t("feature.placeholder")}
             rows={6}
             className="mt-3 w-full resize-y border border-[#1a1a1a]/20 bg-transparent px-4 py-3 text-sm text-[#1a1a1a] outline-none placeholder:text-[#1a1a1a]/35 focus:border-[#1a1a1a]/45"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
@@ -158,7 +160,7 @@ export function FeatureRequestScreen({ isAuthenticated }: FeatureRequestScreenPr
               className="text-[10px] tracking-[0.1em] text-[#1a1a1a]/45"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              {remaining} characters remaining
+              {t("feature.charactersRemaining", { count: remaining })}
             </span>
 
             <motion.button
@@ -170,7 +172,7 @@ export function FeatureRequestScreen({ isAuthenticated }: FeatureRequestScreenPr
               className="px-6 py-3 bg-[#1a1a1a] text-[#FDF6F0]/90 text-[11px] tracking-[0.2em] uppercase transition-all duration-300 disabled:cursor-wait disabled:opacity-55"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              {isSubmitting ? "Sending..." : "Send request"}
+              {isSubmitting ? t("feature.sending") : t("feature.sendRequest")}
             </motion.button>
           </div>
         </div>
@@ -181,7 +183,7 @@ export function FeatureRequestScreen({ isAuthenticated }: FeatureRequestScreenPr
               className="text-sm uppercase tracking-[0.2em] text-[#1a1a1a]/55"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              Your recent requests
+              {t("feature.recentRequests")}
             </h2>
           </div>
 
@@ -191,7 +193,7 @@ export function FeatureRequestScreen({ isAuthenticated }: FeatureRequestScreenPr
                 className="text-sm text-[#1a1a1a]/55"
                 style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
               >
-                Loading requests...
+                {t("feature.loadingRequests")}
               </p>
             </div>
           ) : requests.length === 0 ? (
@@ -200,7 +202,7 @@ export function FeatureRequestScreen({ isAuthenticated }: FeatureRequestScreenPr
                 className="text-sm text-[#1a1a1a]/55"
                 style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
               >
-                No feature requests yet.
+                {t("feature.noRequests")}
               </p>
             </div>
           ) : (

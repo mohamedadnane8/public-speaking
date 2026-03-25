@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { ResumeUpload } from "@/components/ResumeUpload";
 import type { ResumeState } from "@/hooks/useInterview";
 
@@ -20,10 +21,10 @@ interface InterviewHomeScreenProps {
 }
 
 const DIFFICULTY_OPTIONS = [
-  { value: null, label: "Random" },
-  { value: "Easy", label: "Easy" },
-  { value: "Medium", label: "Medium" },
-  { value: "Hard", label: "Hard" },
+  { value: null, labelKey: "interview.random" },
+  { value: "Easy", labelKey: "interview.easy" },
+  { value: "Medium", labelKey: "interview.medium" },
+  { value: "Hard", labelKey: "interview.hard" },
 ];
 
 export function InterviewHomeScreen({
@@ -42,6 +43,7 @@ export function InterviewHomeScreen({
   onRequestPermission,
   onStart,
 }: InterviewHomeScreenProps) {
+  const { t } = useTranslation();
   const categoryOptions = [
     { value: null, label: "Random" },
     ...categories.map((c) => ({ value: c, label: c })),
@@ -77,13 +79,13 @@ export function InterviewHomeScreen({
             className="text-3xl sm:text-4xl md:text-5xl uppercase tracking-[0.2em] sm:tracking-[0.35em] text-[#1a1a1a]/75"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            Interview
+            {t("interview.title")}
           </span>
           <span
             className="text-3xl sm:text-4xl md:text-5xl uppercase tracking-[0.2em] sm:tracking-[0.35em] text-[#1a1a1a]/75"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            Training
+            {t("interview.training")}
           </span>
         </div>
 
@@ -95,9 +97,9 @@ export function InterviewHomeScreen({
                 type="button"
                 onClick={() => handleCategoryCycle(-1)}
                 className="p-1 text-[#1a1a1a]/35 hover:text-[#1a1a1a]/70 transition-colors"
-                aria-label="Previous category"
+                aria-label={t("interview.previousCategory")}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <svg className="rtl-flip" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                   <path d="M15 18l-6-6 6-6" />
                 </svg>
               </button>
@@ -114,9 +116,9 @@ export function InterviewHomeScreen({
                 type="button"
                 onClick={() => handleCategoryCycle(1)}
                 className="p-1 text-[#1a1a1a]/35 hover:text-[#1a1a1a]/70 transition-colors"
-                aria-label="Next category"
+                aria-label={t("interview.nextCategory")}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <svg className="rtl-flip" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                   <path d="M9 18l6-6-6-6" />
                 </svg>
               </button>
@@ -125,7 +127,7 @@ export function InterviewHomeScreen({
               className="text-xs tracking-[0.1em] text-[#1a1a1a]/45"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              Category
+              {t("interview.category")}
             </span>
           </div>
         )}
@@ -134,7 +136,7 @@ export function InterviewHomeScreen({
         <div className="flex items-center gap-2">
           {DIFFICULTY_OPTIONS.map((option) => (
             <button
-              key={option.label}
+              key={option.labelKey}
               type="button"
               onClick={() => onDifficultyChange(option.value)}
               className={`border px-3 py-1 text-[10px] uppercase tracking-[0.18em] transition-colors ${
@@ -144,7 +146,7 @@ export function InterviewHomeScreen({
               }`}
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              {option.label}
+              {t(option.labelKey)}
             </button>
           ))}
         </div>
@@ -194,12 +196,12 @@ export function InterviewHomeScreen({
           }}
         >
           {isBehavioral
-            ? "Ready to practice."
+            ? t("interview.readyToPractice")
             : resumeState.isUploaded
-              ? "Ready to practice."
+              ? t("interview.readyToPractice")
               : isCheckingResume
-                ? "Checking resume..."
-                : "Upload your resume to begin."}
+                ? t("interview.checkingResume")
+                : t("interview.uploadResume")}
         </motion.p>
 
         {/* Recording permission request */}
@@ -218,15 +220,15 @@ export function InterviewHomeScreen({
               className="px-8 py-3 border border-[#7A2E2E]/60 text-[#7A2E2E] text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:border-[#7A2E2E] hover:bg-[#7A2E2E] hover:text-[#FDF6F0] disabled:opacity-50"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              {isRequestingPermission ? "Requesting..." : "Enable Recording"}
+              {isRequestingPermission ? t("interview.requesting") : t("interview.enableRecording")}
             </motion.button>
             <span
               className="text-[10px] tracking-[0.1em] text-[#1a1a1a]/40 text-center"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
               {hasRecordingPermission === false
-                ? "Permission denied — you can still practice without recording"
-                : "Required to review your practice"}
+                ? t("interview.permissionDenied")
+                : t("interview.requiredToReview")}
             </span>
           </motion.div>
         )}
@@ -244,7 +246,7 @@ export function InterviewHomeScreen({
               className="text-[10px] tracking-[0.15em] uppercase text-[#2E7A4E]/80"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              Recording enabled
+              {t("interview.recordingEnabled")}
             </span>
           </motion.div>
         )}
@@ -273,7 +275,7 @@ export function InterviewHomeScreen({
           }`}
           style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
         >
-          {isFetchingQuestion ? "Loading..." : "START"}
+          {isFetchingQuestion ? t("interview.loading") : t("interview.start")}
         </motion.button>
 
         {/* Feature indicators */}
@@ -288,7 +290,7 @@ export function InterviewHomeScreen({
               className="text-[10px] tracking-[0.1em] text-[#7A2E2E]/70 text-center"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              Recording not available — use HTTPS
+              {t("interview.recordingNotAvailable")}
             </span>
           )}
         </motion.div>

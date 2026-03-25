@@ -1,5 +1,6 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { apiClient } from "@/lib/apiClient";
 import type { Session } from "@/types/session";
@@ -43,6 +44,7 @@ export function HistoryScreen({
   isAuthenticated,
   onDeleteSession,
 }: HistoryScreenProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [modeFilter, setModeFilter] = useState<ModeFilter>("ALL");
@@ -114,38 +116,38 @@ export function HistoryScreen({
               className="text-[10px] uppercase tracking-[0.25em] text-[#1a1a1a]/45"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              Practice Journal
+              {t("history.practiceJournal")}
             </p>
             <h1
               className="text-4xl text-[#1a1a1a]"
               style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}
             >
-              History
+              {t("history.title")}
             </h1>
             <p
               className="text-sm text-[#1a1a1a]/55"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
               {isAuthenticated
-                ? "Your latest sessions, scores, and reflections."
-                : "Local history is available. Sign in to sync sessions across devices."}
+                ? t("history.authDescription")
+                : t("history.noAuthDescription")}
             </p>
           </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="border border-[#1a1a1a]/15 bg-[#ffffff]/35 px-4 py-4">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>Sessions</p>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.sessions")}</p>
             <p className="mt-2 text-3xl text-[#1a1a1a]" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}>{sortedSessions.length}</p>
           </div>
           <div className="border border-[#1a1a1a]/15 bg-[#ffffff]/35 px-4 py-4">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>Average Score</p>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.averageScore")}</p>
             <p className="mt-2 text-3xl text-[#1a1a1a]" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}>
               {completedWithScore.length > 0 ? averageScore.toFixed(1) : "—"}
             </p>
           </div>
           <div className="border border-[#1a1a1a]/15 bg-[#ffffff]/35 px-4 py-4">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>Best Score</p>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.bestScore")}</p>
             <p className="mt-2 text-3xl text-[#1a1a1a]" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}>
               {completedWithScore.length > 0 ? bestScore.toFixed(1) : "—"}
             </p>
@@ -156,7 +158,7 @@ export function HistoryScreen({
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by prompt word..."
+            placeholder={t("history.searchPlaceholder")}
             className="w-full border border-[#1a1a1a]/20 bg-transparent px-4 py-3 text-sm text-[#1a1a1a] outline-none placeholder:text-[#1a1a1a]/35 focus:border-[#1a1a1a]/45"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           />
@@ -166,7 +168,7 @@ export function HistoryScreen({
             className="border border-[#1a1a1a]/20 bg-transparent px-4 py-3 text-xs uppercase tracking-[0.15em] text-[#1a1a1a]/75 outline-none focus:border-[#1a1a1a]/45"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            <option value="ALL">All Modes</option>
+            <option value="ALL">{t("history.allModes")}</option>
             {modeOptions.map((mode) => (
               <option key={mode} value={mode}>{formatMode(mode)}</option>
             ))}
@@ -177,10 +179,10 @@ export function HistoryScreen({
             className="border border-[#1a1a1a]/20 bg-transparent px-4 py-3 text-xs uppercase tracking-[0.15em] text-[#1a1a1a]/75 outline-none focus:border-[#1a1a1a]/45"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            <option value="ALL">All Status</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="CANCELLED">Cancelled</option>
-            <option value="FAILED">Failed</option>
+            <option value="ALL">{t("history.allStatus")}</option>
+            <option value="COMPLETED">{t("history.completed")}</option>
+            <option value="CANCELLED">{t("history.cancelled")}</option>
+            <option value="FAILED">{t("history.failed")}</option>
           </select>
           <select
             value={languageFilter}
@@ -188,7 +190,7 @@ export function HistoryScreen({
             className="border border-[#1a1a1a]/20 bg-transparent px-4 py-3 text-xs uppercase tracking-[0.15em] text-[#1a1a1a]/75 outline-none focus:border-[#1a1a1a]/45"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            <option value="ALL">All Lang</option>
+            <option value="ALL">{t("history.allLang")}</option>
             {languageOptions.map((language) => (
               <option key={language} value={language}>{language}</option>
             ))}
@@ -199,7 +201,7 @@ export function HistoryScreen({
             className="border border-[#1a1a1a]/20 bg-transparent px-4 py-3 text-xs uppercase tracking-[0.15em] text-[#1a1a1a]/75 outline-none focus:border-[#1a1a1a]/45"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            <option value="ALL">All Level</option>
+            <option value="ALL">{t("history.allLevel")}</option>
             {difficultyOptions.map((difficulty) => (
               <option key={difficulty} value={difficulty}>{difficulty}</option>
             ))}
@@ -210,7 +212,7 @@ export function HistoryScreen({
           {filteredSessions.length === 0 ? (
             <div className="border border-dashed border-[#1a1a1a]/20 px-6 py-10 text-center">
               <p className="text-sm text-[#1a1a1a]/55" style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}>
-                No sessions match your filters yet.
+                {t("history.noSessions")}
               </p>
             </div>
           ) : (
@@ -277,7 +279,7 @@ export function HistoryScreen({
               <div className="mb-4 flex items-start justify-between">
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.2em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>
-                    Session Detail
+                    {t("history.sessionDetail")}
                   </p>
                   <h2 className="mt-1 text-3xl text-[#1a1a1a]" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}>
                     {selectedSession.word}
@@ -289,38 +291,38 @@ export function HistoryScreen({
                   className="text-[10px] uppercase tracking-[0.18em] text-[#1a1a1a]/50 hover:text-[#1a1a1a]"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
-                  Close
+                  {t("history.close")}
                 </button>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="border border-[#1a1a1a]/15 px-3 py-3">
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>When</p>
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.when")}</p>
                   <p className="mt-1 text-sm text-[#1a1a1a]/80" style={{ fontFamily: '"Inter", sans-serif' }}>
                     {formatDate(selectedSession.completedAt || selectedSession.createdAt)}
                   </p>
                 </div>
                 <div className="border border-[#1a1a1a]/15 px-3 py-3">
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>Timing</p>
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.timing")}</p>
                   <p className="mt-1 text-sm text-[#1a1a1a]/80" style={{ fontFamily: '"Inter", sans-serif' }}>
-                    {selectedSession.thinkSeconds}s think · {selectedSession.speakSeconds}s speak
+                    {t("history.timingValue", { thinkSeconds: selectedSession.thinkSeconds, speakSeconds: selectedSession.speakSeconds })}
                   </p>
                 </div>
               </div>
 
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div className="border border-[#1a1a1a]/15 px-3 py-3">
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>Settings</p>
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.settings")}</p>
                   <p className="mt-1 text-sm text-[#1a1a1a]/80" style={{ fontFamily: '"Inter", sans-serif' }}>
                     {(selectedSession.language ?? "EN")} · {(selectedSession.difficulty ?? "MEDIUM")}
                   </p>
                 </div>
                 <div className="border border-[#1a1a1a]/15 px-3 py-3">
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>Status</p>
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.status")}</p>
                   <p className="mt-1 text-sm text-[#1a1a1a]/80" style={{ fontFamily: '"Inter", sans-serif' }}>{selectedSession.status}</p>
                 </div>
                 <div className="border border-[#1a1a1a]/15 px-3 py-3">
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>Score</p>
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.score")}</p>
                   <p className="mt-1 text-2xl text-[#1a1a1a]" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}>
                     {typeof selectedSession.overallScore === "number" ? selectedSession.overallScore.toFixed(1) : "—"}
                   </p>
@@ -330,7 +332,7 @@ export function HistoryScreen({
               {selectedSession.ratings && (
                 <div className="mt-3 border border-[#1a1a1a]/15 px-3 py-3">
                   <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>
-                    Ratings
+                    {t("history.ratings")}
                   </p>
                   <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-[#1a1a1a]/75" style={{ fontFamily: '"Inter", sans-serif' }}>
                     <span>Opening: {selectedSession.ratings.opening ?? "—"}</span>
@@ -346,7 +348,7 @@ export function HistoryScreen({
 
               {selectedSession.notes && (
                 <div className="mt-3 border border-[#1a1a1a]/15 px-3 py-3">
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>Notes</p>
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.notes")}</p>
                   <p className="mt-2 text-sm text-[#1a1a1a]/75" style={{ fontFamily: '"Inter", sans-serif' }}>
                     {selectedSession.notes}
                   </p>
@@ -371,7 +373,7 @@ export function HistoryScreen({
                   className="border border-[#7A2E2E]/30 px-4 py-2 text-[10px] uppercase tracking-[0.18em] text-[#7A2E2E]/80 transition-colors hover:border-[#7A2E2E]/60 hover:text-[#7A2E2E]"
                   style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                 >
-                  Delete Session
+                  {t("history.deleteSession")}
                 </button>
               </div>
             </motion.div>
@@ -384,6 +386,7 @@ export function HistoryScreen({
 
 /** Self-contained audio player for history sessions. Fetches presigned URL if needed. */
 function HistoryAudioPlayer({ session }: { session: Session }) {
+  const { t } = useTranslation();
   const [audioUrl, setAudioUrl] = useState<string | null>(session.audio?.fileUri ?? null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -407,7 +410,7 @@ function HistoryAudioPlayer({ session }: { session: Session }) {
       setAudioUrl(payload.url);
       return payload.url;
     } catch (err) {
-      setError("Unable to load audio");
+      setError(t("history.unableToLoadAudio"));
       console.error(err);
       return null;
     } finally {
@@ -485,7 +488,7 @@ function HistoryAudioPlayer({ session }: { session: Session }) {
   if (loading) {
     return (
       <span className="text-[10px] text-[#1a1a1a]/40" style={{ fontFamily: '"Inter", sans-serif' }}>
-        Loading audio...
+        {t("history.loadingAudio")}
       </span>
     );
   }

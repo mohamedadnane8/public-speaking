@@ -116,8 +116,8 @@ export function GeneralFlow() {
           sessionId={sess.savedServerSessionId}
           sessionType="General"
           speechAnalysis={sess.savedSpeechAnalysis}
-          transcriptionStatus={null}
-          isPollingTranscription={false}
+          transcriptionStatus={sess.transcriptionPolling.transcriptionStatus}
+          isPollingTranscription={sess.transcriptionPolling.isPolling}
           isPlaying={app.isPlaying}
           currentTime={app.currentTime}
           duration={app.duration}

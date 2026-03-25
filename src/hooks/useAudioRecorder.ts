@@ -2,6 +2,18 @@ import { useState, useRef, useCallback } from "react";
 import fixWebmDuration from "fix-webm-duration";
 import type { SessionAudio, AudioErrorCode } from "@/types/session";
 
+function isWebKitRecorderEnvironment(): boolean {
+  if (typeof navigator === "undefined") return false;
+
+  const ua = navigator.userAgent;
+  const isIOS =
+    /iPad|iPhone|iPod/i.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (isIOS) return true;
+
+  return /Safari/i.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR|Firefox|FxiOS/i.test(ua);
+}
+
 interface UseAudioRecorderReturn {
   audio: SessionAudio | null;
   isRecording: boolean;
@@ -18,6 +30,8 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const startTimeRef = useRef<number>(0);
+  const preferredMimeTypeRef = useRef<string>("");
+  const isWebKitRef = useRef<boolean>(false);
 
   const startRecording = useCallback(async (): Promise<void> => {
     // Stop any previous recorder to prevent stale chunks leaking into the new recording
@@ -83,16 +97,28 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
       
       console.log("Microphone permission granted, creating MediaRecorder...");
       
-      // Determine supported MIME type
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : MediaRecorder.isTypeSupported("audio/webm")
-        ? "audio/webm"
-        : MediaRecorder.isTypeSupported("audio/mp4")
-        ? "audio/mp4"
-        : MediaRecorder.isTypeSupported("audio/ogg")
-        ? "audio/ogg"
-        : "";
+      const isWebKit = isWebKitRecorderEnvironment();
+      isWebKitRef.current = isWebKit;
+
+      // Safari/WebKit is more reliable with mp4 first.
+      const mimeCandidates = isWebKit
+        ? [
+            "audio/mp4;codecs=mp4a.40.2",
+            "audio/mp4",
+            "audio/webm;codecs=opus",
+            "audio/webm",
+            "audio/ogg",
+          ]
+        : [
+            "audio/webm;codecs=opus",
+            "audio/webm",
+            "audio/mp4",
+            "audio/ogg",
+          ];
+
+      const mimeType =
+        mimeCandidates.find((candidate) => MediaRecorder.isTypeSupported(candidate)) ?? "";
+      preferredMimeTypeRef.current = mimeType;
 
       console.log("Using MIME type:", mimeType || "default");
 
@@ -117,8 +143,12 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         });
       };
 
-      // Start recording
-      mediaRecorder.start(100); // Collect data every 100ms
+      // Safari/WebKit can be fragile with tiny timeslices.
+      if (isWebKit) {
+        mediaRecorder.start();
+      } else {
+        mediaRecorder.start(250);
+      }
       setIsRecording(true);
       
       setAudio({
@@ -170,26 +200,41 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     
     return new Promise((resolve) => {
       let resolved = false;
+      let finalized = false;
+      let stopEventReceived = false;
+      let safetyTimer: number | null = null;
+
+      const stopTracks = () => {
+        if (recorder.stream) {
+          recorder.stream.getTracks().forEach((track) => track.stop());
+        }
+      };
       
       const cleanup = () => {
         if (!resolved) {
           resolved = true;
+          if (safetyTimer !== null) {
+            clearTimeout(safetyTimer);
+          }
+          mediaRecorderRef.current = null;
           setIsRecording(false);
           resolve();
         }
       };
 
-      // Set up one-time handler for stop event
-      const handleStop = () => {
+      const finalize = () => {
+        if (finalized) return;
+        finalized = true;
         console.log("MediaRecorder stopped, processing data...");
-        try {
-          // Stop all tracks to release microphone
-          if (recorder.stream) {
-            recorder.stream.getTracks().forEach((track) => track.stop());
-          }
 
+        try {
           // Create blob from chunks
-          const blobType = recorder.mimeType || "audio/webm";
+          const firstTypedChunk = chunksRef.current.find((chunk) => chunk.type && chunk.type.length > 0);
+          const blobType =
+            firstTypedChunk?.type ||
+            recorder.mimeType ||
+            preferredMimeTypeRef.current ||
+            (isWebKitRef.current ? "audio/mp4" : "audio/webm");
           const rawBlob = new Blob(chunksRef.current, { type: blobType });
           const durationMs = Date.now() - startedAt;
 
@@ -207,6 +252,8 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
                 recordingEndedAt: new Date().toISOString(),
               }));
               console.log("Recording saved successfully");
+              stopTracks();
+              chunksRef.current = [];
               cleanup();
             };
 
@@ -238,7 +285,8 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             errorCode: "REC_STOP_FAIL",
           }));
         }
-
+        stopTracks();
+        chunksRef.current = [];
         cleanup();
       };
 
@@ -250,15 +298,30 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
           available: false,
           errorCode: "REC_STOP_FAIL",
         }));
+        stopTracks();
+        chunksRef.current = [];
         cleanup();
+      };
+
+      // Set up one-time handler for stop event
+      const handleStop = () => {
+        stopEventReceived = true;
+        // Give Safari/WebKit a short window for any late dataavailable event.
+        const finalizeDelayMs = isWebKitRef.current ? 250 : 0;
+        setTimeout(() => finalize(), finalizeDelayMs);
       };
 
       recorder.onstop = handleStop;
       recorder.onerror = handleError;
+      safetyTimer = window.setTimeout(() => {
+        if (!stopEventReceived) {
+          console.warn("MediaRecorder stop timed out, finalizing with available chunks");
+        }
+        finalize();
+      }, 2000);
 
-      // Request final data and stop
+      // Stop recorder. Final dataavailable should be delivered by the browser.
       try {
-        recorder.requestData();
         recorder.stop();
       } catch (error) {
         console.error("Error calling stop:", error);
@@ -273,7 +336,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     if (recorder && recorder.state !== "inactive") {
       try {
         recorder.stop();
-      } catch (e) {
+      } catch {
         // Ignore errors on cleanup
       }
     }
@@ -282,7 +345,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
       recorder.stream.getTracks().forEach((track) => {
         try {
           track.stop();
-        } catch (e) {
+        } catch {
           // Ignore errors on cleanup
         }
       });

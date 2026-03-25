@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { initializeAuth } from "@/lib/apiClient";
 import type { User } from "@/hooks/useAuth";
 
@@ -8,6 +9,7 @@ interface AuthSuccessScreenProps {
 }
 
 export function AuthSuccessScreen({ onContinue }: AuthSuccessScreenProps) {
+  const { t } = useTranslation();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -120,10 +122,10 @@ export function AuthSuccessScreen({ onContinue }: AuthSuccessScreenProps) {
             style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
           >
             {isLoading
-              ? "Signing you in..."
+              ? t("auth.signingIn")
               : user
-              ? `Welcome, ${user.firstName || "Back"}`
-              : "Sign In Failed"}
+              ? t("auth.welcomeBack", { name: user.firstName || "Back" })
+              : t("auth.signInFailed")}
           </h1>
           
           <p
@@ -131,10 +133,10 @@ export function AuthSuccessScreen({ onContinue }: AuthSuccessScreenProps) {
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
             {isLoading
-              ? "Please wait while we verify your session..."
+              ? t("auth.pleaseWait")
               : user
-              ? "You're signed in successfully."
-              : error || "Could not complete sign in."}
+              ? t("auth.signedInSuccess")
+              : error || t("auth.couldNotSignIn")}
           </p>
 
           {/* Cookie warning for cross-site issues */}
@@ -143,9 +145,9 @@ export function AuthSuccessScreen({ onContinue }: AuthSuccessScreenProps) {
               className="mt-4 p-3 bg-[#7A2E2E]/5 border border-[#7A2E2E]/20 text-xs text-[#7A2E2E]/80 max-w-xs"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
-              <strong>Cookie Issue Detected</strong>
+              <strong>{t("auth.cookieIssue")}</strong>
               <br />
-              Cross-site authentication requires backend cookies with:
+              {t("auth.cookieRequirement")}
               <code className="block mt-1 bg-[#7A2E2E]/10 px-2 py-1">
                 SameSite=None; Secure
               </code>
@@ -167,7 +169,7 @@ export function AuthSuccessScreen({ onContinue }: AuthSuccessScreenProps) {
                 className="px-8 py-3 bg-[#1a1a1a] text-[#FDF6F0]/90 text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:bg-[#1a1a1a]/90"
                 style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
               >
-                Continue
+                {t("auth.continue")}
               </button>
             ) : (
               <>
@@ -176,14 +178,14 @@ export function AuthSuccessScreen({ onContinue }: AuthSuccessScreenProps) {
                   className="px-8 py-3 bg-[#1a1a1a] text-[#FDF6F0]/90 text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:bg-[#1a1a1a]/90"
                   style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                 >
-                  Try Again
+                  {t("auth.tryAgain")}
                 </button>
                 <button
                   onClick={() => onContinue(null)}
                   className="text-[11px] tracking-[0.15em] uppercase text-[#1a1a1a]/40 hover:text-[#1a1a1a]/70 transition-colors"
                   style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
                 >
-                  Go Home
+                  {t("auth.goHome")}
                 </button>
               </>
             )}

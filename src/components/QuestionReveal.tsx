@@ -175,6 +175,7 @@ export function QuestionReveal({
         transition={{ duration: 0.4 }}
       >
         <motion.p
+          dir="auto"
           className="text-center select-none leading-relaxed"
           style={{
             fontFamily: '"Cormorant Garamond", Georgia, serif',

@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import type { SessionAudio, SessionType, TranscriptionStatus } from "@/types/session";
 import type { User } from "@/hooks/useAuth";
 import { AiAnalysis } from "@/components/AiAnalysis";
@@ -53,13 +54,14 @@ export function ScoreSummaryScreen({
   onNewSession,
   onSaveAndGetAdvice,
 }: ScoreSummaryScreenProps) {
+  const { t } = useTranslation();
   const adviceText =
     advice ??
     (isAuthenticated
-      ? "Generating your focused advice..."
+      ? t("score.generatingAdvice")
       : isSaving
-      ? "Redirecting to sign in..."
-      : "Save this session to get focused advice.");
+      ? t("score.redirecting")
+      : t("score.saveToGetAdvice"));
 
   return (
     <motion.div
@@ -83,13 +85,13 @@ export function ScoreSummaryScreen({
               className="text-sm tracking-[0.2em] text-[#1a1a1a]/60"
               style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
             >
-              Overall Score
+              {t("score.overallScore")}
             </span>
             <span
               className="text-[9px] tracking-[0.12em] uppercase px-2 py-0.5 border border-[#1a1a1a]/15 text-[#1a1a1a]/40"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              Self Rated
+              {t("score.selfRated")}
             </span>
           </div>
           <span
@@ -102,7 +104,7 @@ export function ScoreSummaryScreen({
             className="text-xs tracking-[0.15em] text-[#1a1a1a]/40"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            out of 10
+            {t("score.outOf10")}
           </span>
         </motion.div>
 
@@ -117,7 +119,7 @@ export function ScoreSummaryScreen({
               className="block text-[10px] tracking-[0.18em] uppercase text-[#1a1a1a]/45"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 500 }}
             >
-              Advice
+              {t("score.advice")}
             </span>
             <p
               className="mt-2 text-base sm:text-lg leading-tight text-[#1a1a1a]/88"
@@ -154,7 +156,7 @@ export function ScoreSummaryScreen({
             className="px-12 py-4 bg-[#1a1a1a] text-[#FDF6F0]/90 text-xs tracking-[0.25em] uppercase transition-all duration-300"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            Continue
+            {t("score.continue")}
           </motion.button>
 
           {!isAuthenticated ? (
@@ -170,14 +172,14 @@ export function ScoreSummaryScreen({
               }`}
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              {isSaving ? "Redirecting..." : "Save & get advice"}
+              {isSaving ? t("score.redirectingBtn") : t("score.saveAndGetAdvice")}
             </motion.button>
           ) : (
             <span
               className="text-[11px] tracking-[0.15em] uppercase text-[#1a1a1a]/45"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              {isSaving ? "Saving session..." : isSaved ? "Session saved automatically" : "Auto-saving session..."}
+              {isSaving ? t("score.savingSession") : isSaved ? t("score.sessionSaved") : t("score.autoSaving")}
             </span>
           )}
 
@@ -192,7 +194,7 @@ export function ScoreSummaryScreen({
                 className="text-[10px] tracking-[0.1em] text-[#1a1a1a]/40"
                 style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
               >
-                Signed in as {user.firstName} {user.lastName}
+                {t("score.signedInAs", { firstName: user.firstName, lastName: user.lastName })}
               </span>
             </motion.div>
           )}

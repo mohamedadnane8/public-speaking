@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
+import i18n from "../i18n";
 import { useTimer } from "../hooks/useTimer";
 import { useSoundSystem } from "../hooks/useSoundSystem";
 import { useAppContext } from "./AppContext";
@@ -138,6 +139,17 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
     window.localStorage.setItem(LANGUAGE_STORAGE_KEY, selectedLanguage);
   }, [selectedLanguage]);
 
+  // Sync language selection with i18n and HTML attributes
+  useEffect(() => {
+    const langMap: Record<SessionLanguage, string> = { EN: "en", FR: "fr", AR: "ar" };
+    const i18nLang = langMap[selectedLanguage] ?? "en";
+    if (i18n.language !== i18nLang) {
+      i18n.changeLanguage(i18nLang);
+    }
+    document.documentElement.lang = i18nLang;
+    document.documentElement.dir = selectedLanguage === "AR" ? "rtl" : "ltr";
+  }, [selectedLanguage]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(DIFFICULTY_STORAGE_KEY, selectedDifficulty);
@@ -257,7 +269,7 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
       if (document.hidden) {
         if (app.screen === "THINK" || app.screen === "SPEAK") {
           if (app.screen === "SPEAK") {
-            toast.warning("Recording stopped because the app went to the background.");
+            toast.warning(i18n.t("toast.recordingStopped"));
           }
           handleCancel("APP_BACKGROUND");
         }
@@ -273,7 +285,7 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
     if (pendingSession && app.screen === "HOME" && !app.isAuthSuccessPage && !app.isAuthErrorPage) {
       const parsed = JSON.parse(pendingSession);
       if (parsed?.status === "COMPLETED") {
-        toast.info("Your session is ready to be saved!");
+        toast.info(i18n.t("toast.sessionReady"));
       }
     }
   }, [app.screen, app.isAuthSuccessPage, app.isAuthErrorPage]);
@@ -351,7 +363,7 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
       });
     } catch (error) {
       console.error("Failed to fetch random word from backend:", error);
-      toast.error("Unable to fetch a word right now. Please try again.");
+      toast.error(i18n.t("toast.unableToFetchWord"));
       return;
     }
 
@@ -394,7 +406,8 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
   const handleDoneRating = () => {
     if (!hasAllRatings(ratings)) return;
     const overallScore = calculateOverallScore(ratings);
-    sess.completeSession(ratings, overallScore, notes, undefined);
+    const transcript = sess.transcriptionPolling.transcript ?? undefined;
+    sess.completeSession(ratings, overallScore, notes, transcript);
     sess.setSavedSessionId(null);
     sess.setSaveAttemptedSessionId(null);
     app.setScreen("SCORE_SUMMARY");

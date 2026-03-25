@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import type { InterviewQuestion } from "@/types/interview";
 import { QuestionReveal } from "@/components/QuestionReveal";
 
@@ -24,6 +25,7 @@ export function InterviewQuestionScreen({
   onBegin,
   onSpinAgain,
 }: InterviewQuestionScreenProps) {
+  const { t } = useTranslation();
   const [thinkSeconds, setThinkSeconds] = useState(question.thinkingSeconds);
   const [answerSeconds, setAnswerSeconds] = useState(question.answeringSeconds);
 
@@ -91,7 +93,7 @@ export function InterviewQuestionScreen({
                 className="text-lg sm:text-xl uppercase tracking-[0.2em] text-[#1a1a1a]/75"
                 style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
               >
-                Think
+                {t("interviewQuestion.think")}
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -123,7 +125,7 @@ export function InterviewQuestionScreen({
                 className="text-lg sm:text-xl uppercase tracking-[0.2em] text-[#1a1a1a]/75"
                 style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
               >
-                Answer
+                {t("interviewQuestion.answer")}
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -159,7 +161,7 @@ export function InterviewQuestionScreen({
               className="px-10 py-4 bg-[#1a1a1a] text-[#FDF6F0]/90 text-xs tracking-[0.25em] uppercase transition-all duration-300"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              BEGIN
+              {t("interviewQuestion.begin")}
             </motion.button>
             <motion.button
               onClick={onSpinAgain}
@@ -168,7 +170,7 @@ export function InterviewQuestionScreen({
               className="text-[11px] tracking-[0.15em] uppercase text-[#1a1a1a]/55 hover:text-[#1a1a1a]/80 transition-colors"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              Spin again
+              {t("interviewQuestion.spinAgain")}
             </motion.button>
           </div>
         </motion.div>

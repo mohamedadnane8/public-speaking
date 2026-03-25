@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { useAppContext } from "../contexts/AppContext";
 import { useSessionContext } from "../contexts/SessionContext";
 import { usePracticeContext } from "../contexts/PracticeContext";
@@ -17,6 +18,7 @@ export function InterviewFlow() {
   const sess = useSessionContext();
   const practice = usePracticeContext();
   const iv = useInterviewContext();
+  const { t } = useTranslation();
 
   return (
     <>
@@ -39,7 +41,7 @@ export function InterviewFlow() {
             onStart={iv.handleInterviewStart}
           />
         ) : (
-          <LoginPrompt title="Interview Training" description="Sign in to upload your resume and practice interview questions." onLogin={() => app.login()} />
+          <LoginPrompt title={t("interview.loginTitle")} description={t("interview.loginDescription")} onLogin={() => app.login()} />
         )
       )}
 
@@ -121,8 +123,8 @@ export function InterviewFlow() {
           sessionId={sess.savedServerSessionId}
           sessionType="Interview"
           speechAnalysis={sess.savedSpeechAnalysis}
-          transcriptionStatus={null}
-          isPollingTranscription={false}
+          transcriptionStatus={sess.transcriptionPolling.transcriptionStatus}
+          isPollingTranscription={sess.transcriptionPolling.isPolling}
           isPlaying={app.isPlaying}
           currentTime={app.currentTime}
           duration={app.duration}
@@ -141,6 +143,7 @@ export function InterviewFlow() {
 // ─── Shared login prompt ────────────────────────────────────────
 
 function LoginPrompt({ title, description, onLogin }: { title: string; description: string; onLogin: () => void }) {
+  const { t } = useTranslation();
   return (
     <motion.div
       key={`${title}-login`}
@@ -168,7 +171,7 @@ function LoginPrompt({ title, description, onLogin }: { title: string; descripti
           className="px-8 py-3 border border-[#1a1a1a]/60 text-[#1a1a1a] text-xs tracking-[0.25em] uppercase transition-all duration-300 hover:border-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-[#FDF6F0]"
           style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
         >
-          Login
+          {t("nav.login")}
         </button>
       </div>
     </motion.div>

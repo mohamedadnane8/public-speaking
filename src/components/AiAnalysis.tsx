@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer } from "recharts";
 import { analyzeSession } from "@/lib/interviewApi";
@@ -82,6 +83,7 @@ export function AiAnalysis({
   transcriptionStatus,
   isPolling,
 }: AiAnalysisProps) {
+  const { t } = useTranslation();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<unknown>(speechAnalysis);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -155,7 +157,7 @@ export function AiAnalysis({
               className="text-[10px] text-[#1a1a1a]/40"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              AI Score
+              {t("ai.aiScore")}
             </span>
           </div>
         </div>
@@ -170,7 +172,7 @@ export function AiAnalysis({
               className="text-[10px] tracking-[0.18em] uppercase text-[#1a1a1a]/50 mb-2"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              Filler Words
+              {t("ai.fillerWords")}
             </h4>
             <div className="flex items-center gap-4 mb-2">
               <span
@@ -197,7 +199,7 @@ export function AiAnalysis({
                 className="text-[11px] text-[#1a1a1a]/50"
                 style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
               >
-                Top: {analysis.filler_analysis.top_offenders.slice(0, 3).join(", ")}
+                {t("ai.topOffenders", { offenders: analysis.filler_analysis.top_offenders.slice(0, 3).join(", ") })}
               </p>
             )}
             {analysis.filler_analysis.clustering_note && (
@@ -217,7 +219,7 @@ export function AiAnalysis({
             className="text-[10px] tracking-[0.18em] uppercase text-[#1a1a1a]/50 text-center"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            Criteria Breakdown
+            {t("ai.criteriaBreakdown")}
           </h4>
           {Object.entries(analysis.scores).map(([key, score]) => (
             <div key={key} className="flex flex-col gap-1">
@@ -257,7 +259,7 @@ export function AiAnalysis({
                 className="text-[9px] tracking-[0.15em] uppercase text-[#2E7A4E]/60 block mb-1"
                 style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
               >
-                Strength
+                {t("ai.strength")}
               </span>
               <p
                 className="text-[11px] text-[#1a1a1a]/65 leading-relaxed"
@@ -273,7 +275,7 @@ export function AiAnalysis({
                 className="text-[9px] tracking-[0.15em] uppercase text-[#B8860B]/60 block mb-1"
                 style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
               >
-                Focus on
+                {t("ai.focusOn")}
               </span>
               <p
                 className="text-[11px] text-[#1a1a1a]/65 leading-relaxed"
@@ -290,7 +292,7 @@ export function AiAnalysis({
           className="text-[9px] tracking-[0.08em] text-[#1a1a1a]/30 text-center"
           style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
         >
-          {usageCount}/{DAILY_LIMIT} analyses today
+          {t("ai.analysesToday", { count: usageCount, limit: DAILY_LIMIT })}
         </p>
       </motion.div>
     );
@@ -315,7 +317,7 @@ export function AiAnalysis({
             className="text-[10px] tracking-[0.15em] uppercase text-[#1a1a1a]/50"
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
-            Analyzing speech...
+            {t("ai.analyzingSpeech")}
           </span>
         </div>
       ) : (
@@ -333,12 +335,12 @@ export function AiAnalysis({
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
             {limitReached
-              ? "Limit reached"
+              ? t("ai.limitReached")
               : isPolling || transcriptionStatus === "Pending" || transcriptionStatus === "Processing"
-                ? "Waiting for transcript..."
+                ? t("ai.waitingForTranscript")
                 : isTranscriptFailed
-                  ? "Transcript failed"
-                  : "AI Analysis"}
+                  ? t("ai.transcriptFailed")
+                  : t("ai.aiAnalysis")}
           </motion.button>
 
           <span
@@ -346,8 +348,8 @@ export function AiAnalysis({
             style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
           >
             {limitReached
-              ? "Resets tomorrow"
-              : `${usageCount}/${DAILY_LIMIT} analyses today`}
+              ? t("ai.resetsTomorrow")
+              : t("ai.analysesToday", { count: usageCount, limit: DAILY_LIMIT })}
           </span>
         </>
       )}
@@ -367,27 +369,28 @@ export function AiAnalysis({
 // ─── Radar Chart ────────────────────────────────────────────────
 
 const LABEL_MAP: Record<string, string> = {
-  opening: "Opening",
-  structure: "Structure",
-  closing: "Closing",
-  confidence: "Confidence",
-  clarity: "Clarity",
-  authenticity: "Authenticity",
-  language: "Language",
-  passion: "Passion",
-  relevance: "Relevance",
-  situation: "Situation",
-  action: "Action",
-  result: "Result",
-  delivery: "Delivery",
-  conciseness: "Conciseness",
+  opening: "ai.opening",
+  structure: "ai.structure",
+  closing: "ai.closing",
+  confidence: "ai.confidence",
+  clarity: "ai.clarity",
+  authenticity: "ai.authenticity",
+  language: "ai.language",
+  passion: "ai.passion",
+  relevance: "ai.relevance",
+  situation: "ai.situation",
+  action: "ai.action",
+  result: "ai.result",
+  delivery: "ai.delivery",
+  conciseness: "ai.conciseness",
 };
 
 function CriteriaRadarChart({ scores }: { scores: Record<string, ScoreEntry> }) {
+  const { t } = useTranslation();
   const data = useMemo(
     () =>
       Object.entries(scores).map(([key, score]) => ({
-        criterion: LABEL_MAP[key] ?? key.replace(/_/g, " "),
+        criterion: LABEL_MAP[key] ? t(LABEL_MAP[key]) : key.replace(/_/g, " "),
         score: score.raw,
         fullMark: 5,
       })),
