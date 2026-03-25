@@ -9,6 +9,7 @@ interface InterviewSpeakScreenProps {
   totalSeconds: number;
   isRecording: boolean;
   audio: SessionAudio | null | undefined;
+  onStop?: () => void;
 }
 
 export function InterviewSpeakScreen({
@@ -17,6 +18,7 @@ export function InterviewSpeakScreen({
   totalSeconds,
   isRecording,
   audio,
+  onStop,
 }: InterviewSpeakScreenProps) {
   const { t } = useTranslation();
   const progress = 1 - seconds / totalSeconds;
@@ -96,6 +98,20 @@ export function InterviewSpeakScreen({
             </motion.div>
           </CircularProgress>
         </div>
+
+        {/* Stop early button */}
+        {isRecording && onStop && (
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1, duration: 0.4 }}
+            onClick={onStop}
+            className="mt-2 border border-[#1a1a1a]/20 px-6 py-2.5 text-[10px] uppercase tracking-[0.18em] text-[#1a1a1a]/60 transition-colors hover:border-[#1a1a1a]/40 hover:text-[#1a1a1a]/80"
+            style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+          >
+            {t("interviewSpeak.stopAnswer")}
+          </motion.button>
+        )}
       </div>
     </motion.div>
   );

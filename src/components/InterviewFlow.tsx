@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppContext } from "../contexts/AppContext";
 import { useSessionContext } from "../contexts/SessionContext";
@@ -19,6 +20,25 @@ export function InterviewFlow() {
   const practice = usePracticeContext();
   const iv = useInterviewContext();
   const { t } = useTranslation();
+  const { screen, prepareAudio } = app;
+
+  // Find previous completed Interview session for chart comparison
+  const previousInterviewRatings = useMemo(() => {
+    const currentId = sess.session?.id;
+    const all = sess.historySessions;
+    for (const s of all) {
+      if (s.id !== currentId && s.status === "COMPLETED" && s.interviewRatings && s.type === "Interview") {
+        return s.interviewRatings;
+      }
+    }
+    return undefined;
+  }, [sess.historySessions, sess.session?.id]);
+
+  useEffect(() => {
+    if ((screen === "INTERVIEW_PLAYBACK" || screen === "INTERVIEW_SCORE") && sess.audio?.fileUri) {
+      prepareAudio(sess.audio.fileUri);
+    }
+  }, [screen, prepareAudio, sess.audio?.fileUri]);
 
   return (
     <>
@@ -74,6 +94,7 @@ export function InterviewFlow() {
           totalSeconds={iv.interviewAnswerSeconds}
           isRecording={sess.isRecording}
           audio={sess.audio}
+          onStop={iv.transitionToInterviewPlayback}
         />
       )}
 
@@ -82,7 +103,7 @@ export function InterviewFlow() {
           question={iv.interview.currentQuestion.question}
           category={iv.interview.currentQuestion.category}
           audio={sess.audio}
-          transcript={sess.session?.transcript ?? undefined}
+          transcript={sess.transcriptionPolling.transcript ?? undefined}
           isPlaying={app.isPlaying}
           currentTime={app.currentTime}
           duration={app.duration}
@@ -126,6 +147,9 @@ export function InterviewFlow() {
           speechAnalysis={sess.savedSpeechAnalysis}
           transcriptionStatus={sess.transcriptionPolling.transcriptionStatus}
           isPollingTranscription={sess.transcriptionPolling.isPolling}
+          transcript={sess.transcriptionPolling.transcript ?? undefined}
+          interviewRatings={iv.interviewRatings as import("@/types/session").InterviewRatings}
+          previousInterviewRatings={previousInterviewRatings}
           isPlaying={app.isPlaying}
           currentTime={app.currentTime}
           duration={app.duration}

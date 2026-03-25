@@ -176,6 +176,24 @@ export function InterviewProvider({ children }: { children: ReactNode }) {
 
   const handleInterviewBegin = useCallback((thinkSeconds: number, answerSeconds: number) => {
     if (!interview.currentQuestion) return;
+
+    // Start each interview answer with a fresh shared session state
+    // to avoid showing transcript/analysis from a previous flow.
+    sess.resetRecording();
+    sess.setSavedSessionId(null);
+    sess.setSaveAttemptedSessionId(null);
+    sess.setSavedServerSessionId(null);
+    sess.setSavedSpeechAnalysis(null);
+    sess.setEarlySaveStatus("idle");
+    sess.createSession(
+      practice.modeConfig.name,
+      practice.selectedLanguage,
+      practice.selectedDifficulty,
+      interview.currentQuestion.question,
+      thinkSeconds,
+      answerSeconds
+    );
+
     setInterviewThinkSeconds(thinkSeconds);
     setInterviewAnswerSeconds(answerSeconds);
     app.setScreen("INTERVIEW_THINK");
@@ -183,15 +201,47 @@ export function InterviewProvider({ children }: { children: ReactNode }) {
     interviewThinkTimer.reset(thinkSeconds);
     interviewSpeakTimer.reset(answerSeconds);
     setTimeout(() => interviewThinkTimer.start(), 500);
-  }, [interview.currentQuestion, interviewThinkTimer, interviewSpeakTimer, app.setScreen]);
+  }, [
+    interview.currentQuestion,
+    interviewThinkTimer,
+    interviewSpeakTimer,
+    app.setScreen,
+    sess.resetRecording,
+    sess.setSavedSessionId,
+    sess.setSaveAttemptedSessionId,
+    sess.setSavedServerSessionId,
+    sess.setSavedSpeechAnalysis,
+    sess.setEarlySaveStatus,
+    sess.createSession,
+    practice.modeConfig.name,
+    practice.selectedLanguage,
+    practice.selectedDifficulty,
+  ]);
 
   const handleInterviewCancel = useCallback(() => {
     interviewThinkTimer.pause();
     interviewSpeakTimer.pause();
     if (sess.isRecording) sess.stopRecording();
     sess.resetRecording();
+    sess.setSavedSessionId(null);
+    sess.setSaveAttemptedSessionId(null);
+    sess.setSavedServerSessionId(null);
+    sess.setSavedSpeechAnalysis(null);
+    sess.setEarlySaveStatus("idle");
     app.setScreen("INTERVIEW_HOME");
-  }, [interviewThinkTimer, interviewSpeakTimer, sess.isRecording, sess.stopRecording, sess.resetRecording, app.setScreen]);
+  }, [
+    interviewThinkTimer,
+    interviewSpeakTimer,
+    sess.isRecording,
+    sess.stopRecording,
+    sess.resetRecording,
+    sess.setSavedSessionId,
+    sess.setSaveAttemptedSessionId,
+    sess.setSavedServerSessionId,
+    sess.setSavedSpeechAnalysis,
+    sess.setEarlySaveStatus,
+    app.setScreen,
+  ]);
 
   const handleInterviewResumeUpload = useCallback(async (file: File) => {
     try {

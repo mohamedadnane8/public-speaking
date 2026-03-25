@@ -173,6 +173,46 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
   const [hasRecordingPermission, setHasRecordingPermission] = useState<boolean | null>(null);
   const [isRequestingPermission, setIsRequestingPermission] = useState(false);
 
+  // Keep microphone permission state in sync when the browser exposes the Permissions API.
+  useEffect(() => {
+    if (!isRecordingSupported) return;
+    if (typeof navigator === "undefined") return;
+    if (!("permissions" in navigator) || typeof navigator.permissions.query !== "function") return;
+
+    let isMounted = true;
+    let permissionStatus: PermissionStatus | null = null;
+
+    const applyPermissionState = (state: PermissionState) => {
+      if (!isMounted) return;
+      if (state === "granted") {
+        setHasRecordingPermission(true);
+      } else if (state === "denied") {
+        setHasRecordingPermission(false);
+      } else {
+        setHasRecordingPermission(null);
+      }
+    };
+
+    const syncPermission = async () => {
+      try {
+        const status = await navigator.permissions.query({ name: "microphone" as PermissionName });
+        if (!isMounted) return;
+        permissionStatus = status;
+        applyPermissionState(status.state);
+        status.onchange = () => applyPermissionState(status.state);
+      } catch {
+        // Some browsers (including older Safari versions) may not support microphone permission queries.
+      }
+    };
+
+    void syncPermission();
+
+    return () => {
+      isMounted = false;
+      if (permissionStatus) permissionStatus.onchange = null;
+    };
+  }, []);
+
   // Ratings
   const [ratings, setRatings] = useState<Partial<SessionRatings>>({});
   const [notes, setNotes] = useState("");
@@ -418,7 +458,6 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
   const handleNewSession = () => {
     resetState();
     sess.resetUsedWords();
-    setHasRecordingPermission(null);
     app.setScreen("HOME");
   };
 

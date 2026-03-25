@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer } from "recharts";
@@ -48,12 +48,25 @@ interface ScoreEntry {
   feedback: string;
 }
 
+interface FillerCategoryBreakdown {
+  count: number;
+  words: Record<string, number>;
+}
+
+interface FillerBreakdown {
+  hesitation_sounds: FillerCategoryBreakdown;
+  padding_phrases: FillerCategoryBreakdown;
+  verbal_tics: FillerCategoryBreakdown;
+  restarts: { count: number };
+}
+
 interface FillerAnalysis {
   total_count: number;
   estimated_duration_minutes: number;
   filler_rate_per_minute: number;
   rate_label: string;
   clustering_note?: string;
+  breakdown?: FillerBreakdown;
   top_offenders: string[];
 }
 
@@ -74,6 +87,7 @@ interface AiAnalysisProps {
   speechAnalysis: unknown;
   transcriptionStatus: TranscriptionStatus | null;
   isPolling: boolean;
+  transcript?: string;
 }
 
 export function AiAnalysis({
@@ -82,12 +96,19 @@ export function AiAnalysis({
   speechAnalysis,
   transcriptionStatus,
   isPolling,
+  transcript,
 }: AiAnalysisProps) {
   const { t } = useTranslation();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<unknown>(speechAnalysis);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [usageCount, setUsageCount] = useState(() => getUsageToday().count);
+
+  // Keep internal analysis state aligned with the active session props.
+  useEffect(() => {
+    setAnalysisResult(speechAnalysis ?? null);
+    setAnalysisError(null);
+  }, [speechAnalysis, sessionId, sessionType]);
 
   const isTranscriptReady = transcriptionStatus === "Completed";
   const isTranscriptFailed = transcriptionStatus === "Failed";
@@ -211,6 +232,14 @@ export function AiAnalysis({
               </p>
             )}
           </div>
+        )}
+
+        {/* Annotated Transcript */}
+        {analysis.filler_analysis?.breakdown && transcript && (
+          <AnnotatedTranscript
+            transcript={transcript}
+            breakdown={analysis.filler_analysis.breakdown}
+          />
         )}
 
         {/* Per-criterion scores */}
@@ -363,6 +392,219 @@ export function AiAnalysis({
         </span>
       )}
     </motion.div>
+  );
+}
+
+// ─── Annotated Transcript ───────────────────────────────────────
+
+type FillerCategory = "hesitation_sounds" | "padding_phrases" | "verbal_tics";
+
+interface TranscriptSegment {
+  text: string;
+  category: FillerCategory | null;
+  fillerWord: string | null;
+}
+
+const CATEGORY_STYLES: Record<FillerCategory, { bg: string; label: string }> = {
+  hesitation_sounds: { bg: "bg-orange-200/60", label: "ai.hesitation" },
+  padding_phrases: { bg: "bg-purple-200/60", label: "ai.padding" },
+  verbal_tics: { bg: "bg-blue-200/60", label: "ai.verbalTics" },
+};
+
+const CATEGORY_DOTS: Record<FillerCategory, string> = {
+  hesitation_sounds: "bg-orange-300",
+  padding_phrases: "bg-purple-300",
+  verbal_tics: "bg-blue-300",
+};
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function hasArabic(str: string): boolean {
+  return /[\u0600-\u06FF]/.test(str);
+}
+
+function tokenizeTranscript(
+  transcript: string,
+  breakdown: FillerBreakdown,
+): TranscriptSegment[] {
+  const entries: { word: string; category: FillerCategory }[] = [];
+  const categories: FillerCategory[] = ["hesitation_sounds", "padding_phrases", "verbal_tics"];
+
+  for (const cat of categories) {
+    const catData = breakdown[cat];
+    if (catData?.words) {
+      for (const word of Object.keys(catData.words)) {
+        entries.push({ word, category: cat });
+      }
+    }
+  }
+
+  if (entries.length === 0) {
+    return [{ text: transcript, category: null, fillerWord: null }];
+  }
+
+  // Sort by length descending so multi-word phrases match first
+  entries.sort((a, b) => b.word.length - a.word.length);
+
+  // Build regex patterns with proper word boundaries
+  const patterns = entries.map((e) => {
+    const escaped = escapeRegex(e.word);
+    if (hasArabic(e.word)) {
+      return `(?:^|(?<=\\s))${escaped}(?:$|(?=\\s))`;
+    }
+    return `\\b${escaped}\\b`;
+  });
+
+  const regex = new RegExp(`(${patterns.join("|")})`, "gi");
+
+  // Build a lookup: lowercased word → category
+  const wordCategoryMap = new Map<string, FillerCategory>();
+  for (const e of entries) {
+    wordCategoryMap.set(e.word.toLowerCase(), e.category);
+  }
+
+  const segments: TranscriptSegment[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(transcript)) !== null) {
+    // Plain text before this match
+    if (match.index > lastIndex) {
+      segments.push({
+        text: transcript.slice(lastIndex, match.index),
+        category: null,
+        fillerWord: null,
+      });
+    }
+
+    const matchedText = match[0];
+    const category = wordCategoryMap.get(matchedText.toLowerCase()) ?? null;
+    segments.push({
+      text: matchedText,
+      category,
+      fillerWord: matchedText.toLowerCase(),
+    });
+
+    lastIndex = match.index + matchedText.length;
+  }
+
+  // Remaining text
+  if (lastIndex < transcript.length) {
+    segments.push({
+      text: transcript.slice(lastIndex),
+      category: null,
+      fillerWord: null,
+    });
+  }
+
+  return segments;
+}
+
+function AnnotatedTranscript({
+  transcript,
+  breakdown,
+}: {
+  transcript: string;
+  breakdown: FillerBreakdown;
+}) {
+  const { t } = useTranslation();
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const segments = useMemo(
+    () => tokenizeTranscript(transcript, breakdown),
+    [transcript, breakdown],
+  );
+
+  // Collect word counts for tooltip
+  const wordCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    const categories: FillerCategory[] = ["hesitation_sounds", "padding_phrases", "verbal_tics"];
+    for (const cat of categories) {
+      const catData = breakdown[cat];
+      if (catData?.words) {
+        for (const [word, count] of Object.entries(catData.words)) {
+          counts.set(word.toLowerCase(), count);
+        }
+      }
+    }
+    return counts;
+  }, [breakdown]);
+
+  return (
+    <div className="border border-[#1a1a1a]/10">
+      {/* Collapsible header */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#1a1a1a]/[0.02] transition-colors"
+      >
+        <span
+          className="text-[10px] tracking-[0.18em] uppercase text-[#1a1a1a]/50"
+          style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+        >
+          {t("ai.annotatedTranscript")}
+        </span>
+        <svg
+          className={`w-3 h-3 text-[#1a1a1a]/40 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+          viewBox="0 0 12 12"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        >
+          <path d="M3 4.5L6 7.5L9 4.5" />
+        </svg>
+      </button>
+
+      {isExpanded && (
+        <div className="px-4 pb-4">
+          {/* Color legend */}
+          <div className="flex items-center gap-4 mb-3">
+            {(Object.entries(CATEGORY_STYLES) as [FillerCategory, { bg: string; label: string }][]).map(
+              ([cat, style]) => (
+                <div key={cat} className="flex items-center gap-1.5">
+                  <div className={`w-2 h-2 rounded-full ${CATEGORY_DOTS[cat]}`} />
+                  <span
+                    className="text-[9px] tracking-[0.1em] uppercase text-[#1a1a1a]/45"
+                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                  >
+                    {t(style.label)}
+                  </span>
+                </div>
+              ),
+            )}
+          </div>
+
+          {/* Transcript body */}
+          <div
+            dir="auto"
+            className="max-h-60 overflow-y-auto border border-[#1a1a1a]/5 bg-[#1a1a1a]/[0.015] px-3 py-2.5 text-[12px] leading-relaxed text-[#1a1a1a]/75"
+            style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+          >
+            {segments.map((seg, i) =>
+              seg.category ? (
+                <span key={i} className="group relative inline">
+                  <span
+                    className={`${CATEGORY_STYLES[seg.category].bg} rounded-sm px-0.5 cursor-default`}
+                  >
+                    {seg.text}
+                  </span>
+                  {/* Tooltip */}
+                  <span
+                    className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block whitespace-nowrap px-2 py-1 text-[9px] tracking-[0.08em] bg-[#1a1a1a] text-[#FDF6F0]/90 rounded z-10"
+                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                  >
+                    {t(CATEGORY_STYLES[seg.category].label)} — {wordCounts.get(seg.fillerWord ?? "") ?? 0}x
+                  </span>
+                </span>
+              ) : (
+                <span key={i}>{seg.text}</span>
+              ),
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

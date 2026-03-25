@@ -176,7 +176,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // Transcription polling — starts when we have a server session ID and are on PLAYBACK or later
   const transcriptionPolling = useTranscriptionPolling(
     savedServerSessionId,
-    earlySaveStatus === "saved" && (app.screen === "PLAYBACK" || app.screen === "REFLECT" || app.screen === "SCORE_SUMMARY"),
+    earlySaveStatus === "saved" && (
+      app.screen === "PLAYBACK" ||
+      app.screen === "REFLECT" ||
+      app.screen === "SCORE_SUMMARY" ||
+      app.screen === "INTERVIEW_PLAYBACK" ||
+      app.screen === "INTERVIEW_REFLECT" ||
+      app.screen === "INTERVIEW_SCORE"
+    ),
   );
 
   // Remote sessions

@@ -42,6 +42,7 @@ interface AppContextValue {
   playbackError: boolean;
   audioRef: React.MutableRefObject<HTMLAudioElement | null>;
   audioSrcRef: React.MutableRefObject<string | null>;
+  prepareAudio: (fileUri?: string) => void;
   handlePlayToggle: (fileUri?: string) => void;
   handleSeek: (time: number) => void;
   handleSkipBackward: () => void;
@@ -224,6 +225,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [isPlaying, ensureAudioElement]);
 
+  const prepareAudio = useCallback((fileUri?: string) => {
+    if (!fileUri) return;
+    const audio = ensureAudioElement(fileUri);
+    if (audio.paused && audio.readyState < 1) {
+      try {
+        audio.load();
+      } catch (err) {
+        console.warn("Audio preload failed:", err);
+      }
+    }
+  }, [ensureAudioElement]);
+
   const handleSeek = useCallback((time: number) => {
     if (audioRef.current) {
       audioRef.current.currentTime = Math.max(0, Math.min(time, duration));
@@ -265,14 +278,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     user, isAuthenticated, isAuthLoading, isLocalhostEnv, login, devLogin, logout, refreshUser,
     isAccountMenuOpen, setIsAccountMenuOpen, accountMenuRef,
     isPlaying, setIsPlaying, currentTime, setCurrentTime, duration, setDuration, playbackError, audioRef, audioSrcRef,
-    handlePlayToggle, handleSeek, handleSkipBackward, handleSkipForward, handleReplay, setFallbackDuration,
+    prepareAudio, handlePlayToggle, handleSeek, handleSkipBackward, handleSkipForward, handleReplay, setFallbackDuration,
   }), [
     screen, section, showNavbar,
     isAuthSuccessPage, isAuthErrorPage, authError, clearAuthParams,
     user, isAuthenticated, isAuthLoading, isLocalhostEnv, login, devLogin, logout, refreshUser,
     isAccountMenuOpen, accountMenuRef,
     isPlaying, currentTime, duration, playbackError,
-    handlePlayToggle, handleSeek, handleSkipBackward, handleSkipForward, handleReplay, setFallbackDuration,
+    prepareAudio, handlePlayToggle, handleSeek, handleSkipBackward, handleSkipForward, handleReplay, setFallbackDuration,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

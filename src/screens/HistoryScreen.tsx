@@ -2,6 +2,7 @@ import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { AudioPlayer } from "@/components/AudioPlayer";
+import { AiAnalysis } from "@/components/AiAnalysis";
 import { apiClient } from "@/lib/apiClient";
 import type { Session } from "@/types/session";
 
@@ -51,6 +52,7 @@ export function HistoryScreen({
   const [languageFilter, setLanguageFilter] = useState<LanguageFilter>("ALL");
   const [difficultyFilter, setDifficultyFilter] = useState<DifficultyFilter>("ALL");
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [detailTab, setDetailTab] = useState<"self" | "ai">("self");
 
   const sortedSessions = useMemo(() => {
     return [...sessions].sort((a, b) => getSessionDate(b) - getSessionDate(a));
@@ -220,7 +222,7 @@ export function HistoryScreen({
               <button
                 key={session.id}
                 type="button"
-                onClick={() => setSelectedSession(session)}
+                onClick={() => { setSelectedSession(session); setDetailTab("self"); }}
                 className="w-full border border-[#1a1a1a]/15 bg-[#ffffff]/30 px-4 py-4 text-left transition-colors hover:border-[#1a1a1a]/35 hover:bg-[#ffffff]/45"
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -310,53 +312,95 @@ export function HistoryScreen({
                 </div>
               </div>
 
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div className="border border-[#1a1a1a]/15 px-3 py-3">
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.settings")}</p>
-                  <p className="mt-1 text-sm text-[#1a1a1a]/80" style={{ fontFamily: '"Inter", sans-serif' }}>
-                    {(selectedSession.language ?? "EN")} · {(selectedSession.difficulty ?? "MEDIUM")}
-                  </p>
-                </div>
-                <div className="border border-[#1a1a1a]/15 px-3 py-3">
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.status")}</p>
-                  <p className="mt-1 text-sm text-[#1a1a1a]/80" style={{ fontFamily: '"Inter", sans-serif' }}>{selectedSession.status}</p>
-                </div>
-                <div className="border border-[#1a1a1a]/15 px-3 py-3">
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.score")}</p>
-                  <p className="mt-1 text-2xl text-[#1a1a1a]" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}>
-                    {typeof selectedSession.overallScore === "number" ? selectedSession.overallScore.toFixed(1) : "—"}
-                  </p>
-                </div>
+              {/* Tabs */}
+              <div className="mt-4 flex gap-0 border-b border-[#1a1a1a]/10">
+                <button
+                  type="button"
+                  onClick={() => setDetailTab("self")}
+                  className={`px-4 py-2.5 text-[10px] uppercase tracking-[0.18em] transition-colors ${
+                    detailTab === "self"
+                      ? "border-b-2 border-[#1a1a1a]/70 text-[#1a1a1a]/80"
+                      : "text-[#1a1a1a]/40 hover:text-[#1a1a1a]/60"
+                  }`}
+                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: detailTab === "self" ? 500 : 400 }}
+                >
+                  {t("history.selfReview")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailTab("ai")}
+                  className={`px-4 py-2.5 text-[10px] uppercase tracking-[0.18em] transition-colors ${
+                    detailTab === "ai"
+                      ? "border-b-2 border-[#1a1a1a]/70 text-[#1a1a1a]/80"
+                      : "text-[#1a1a1a]/40 hover:text-[#1a1a1a]/60"
+                  }`}
+                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: detailTab === "ai" ? 500 : 400 }}
+                >
+                  {t("history.aiAnalysisTab")}
+                </button>
               </div>
 
-              {selectedSession.ratings && (
-                <div className="mt-3 border border-[#1a1a1a]/15 px-3 py-3">
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>
-                    {t("history.ratings")}
-                  </p>
-                  <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-[#1a1a1a]/75" style={{ fontFamily: '"Inter", sans-serif' }}>
-                    <span>Opening: {selectedSession.ratings.opening ?? "—"}</span>
-                    <span>Structure: {selectedSession.ratings.structure ?? "—"}</span>
-                    <span>Ending: {selectedSession.ratings.ending ?? "—"}</span>
-                    <span>Confidence: {selectedSession.ratings.confidence ?? "—"}</span>
-                    <span>Clarity: {selectedSession.ratings.clarity ?? "—"}</span>
-                    <span>Authenticity: {selectedSession.ratings.authenticity ?? "—"}</span>
-                    <span>Expression: {selectedSession.ratings.languageExpression ?? "—"}</span>
+              {/* Tab content */}
+              <div className={`mt-3 space-y-3 ${detailTab !== "self" ? "hidden" : ""}`}>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="border border-[#1a1a1a]/15 px-3 py-3">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.settings")}</p>
+                      <p className="mt-1 text-sm text-[#1a1a1a]/80" style={{ fontFamily: '"Inter", sans-serif' }}>
+                        {(selectedSession.language ?? "EN")} · {(selectedSession.difficulty ?? "MEDIUM")}
+                      </p>
+                    </div>
+                    <div className="border border-[#1a1a1a]/15 px-3 py-3">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.status")}</p>
+                      <p className="mt-1 text-sm text-[#1a1a1a]/80" style={{ fontFamily: '"Inter", sans-serif' }}>{selectedSession.status}</p>
+                    </div>
+                    <div className="border border-[#1a1a1a]/15 px-3 py-3">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.score")}</p>
+                      <p className="mt-1 text-2xl text-[#1a1a1a]" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}>
+                        {typeof selectedSession.overallScore === "number" ? selectedSession.overallScore.toFixed(1) : "—"}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
 
-              {selectedSession.notes && (
-                <div className="mt-3 border border-[#1a1a1a]/15 px-3 py-3">
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.notes")}</p>
-                  <p className="mt-2 text-sm text-[#1a1a1a]/75" style={{ fontFamily: '"Inter", sans-serif' }}>
-                    {selectedSession.notes}
-                  </p>
-                </div>
-              )}
+                  {selectedSession.ratings && (
+                    <div className="border border-[#1a1a1a]/15 px-3 py-3">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>
+                        {t("history.ratings")}
+                      </p>
+                      <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-[#1a1a1a]/75" style={{ fontFamily: '"Inter", sans-serif' }}>
+                        <span>Opening: {selectedSession.ratings.opening ?? "—"}</span>
+                        <span>Structure: {selectedSession.ratings.structure ?? "—"}</span>
+                        <span>Ending: {selectedSession.ratings.ending ?? "—"}</span>
+                        <span>Confidence: {selectedSession.ratings.confidence ?? "—"}</span>
+                        <span>Clarity: {selectedSession.ratings.clarity ?? "—"}</span>
+                        <span>Authenticity: {selectedSession.ratings.authenticity ?? "—"}</span>
+                        <span>Expression: {selectedSession.ratings.languageExpression ?? "—"}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedSession.notes && (
+                    <div className="border border-[#1a1a1a]/15 px-3 py-3">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.notes")}</p>
+                      <p className="mt-2 text-sm text-[#1a1a1a]/75" style={{ fontFamily: '"Inter", sans-serif' }}>
+                        {selectedSession.notes}
+                      </p>
+                    </div>
+                  )}
+              </div>
+
+              <div className={`mt-4 flex justify-center ${detailTab !== "ai" ? "hidden" : ""}`}>
+                <AiAnalysis
+                  sessionId={selectedSession.id}
+                  sessionType={selectedSession.type === "Interview" ? "Interview" : "General"}
+                  speechAnalysis={selectedSession.speechAnalysis ?? null}
+                  transcriptionStatus={selectedSession.transcriptionStatus ?? "Completed"}
+                  isPolling={false}
+                  transcript={selectedSession.transcript}
+                />
+              </div>
 
               {/* Audio player */}
-              <div className="mt-4">
+              <div className="mt-4 flex justify-center">
                 {selectedSession.audio?.available &&
                 (selectedSession.audio?.fileUri || selectedSession.audio?.objectKey) ? (
                   <HistoryAudioPlayer session={selectedSession} />
@@ -370,7 +414,7 @@ export function HistoryScreen({
                 )}
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-4 flex justify-center flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -449,14 +493,9 @@ function HistoryAudioPlayer({ session }: { session: Session }) {
     };
   }, []);
 
-  const handlePlayToggle = useCallback(async () => {
-    if (isPlaying) {
-      audioRef.current?.pause();
-      setIsPlaying(false);
-      return;
-    }
+  const ensureAudioElement = useCallback(async () => {
     const url = await ensureUrl();
-    if (!url) return;
+    if (!url) return null;
     if (!audioRef.current) {
       audioRef.current = new Audio(url);
       audioRef.current.onended = () => {
@@ -478,12 +517,30 @@ function HistoryAudioPlayer({ session }: { session: Session }) {
         setError(null);
       };
     }
-    audioRef.current.play().catch(() => {
+    return audioRef.current;
+  }, [ensureUrl, t]);
+
+  // Preload metadata so duration is visible before user presses play.
+  useEffect(() => {
+    void ensureAudioElement();
+  }, [ensureAudioElement]);
+
+  const handlePlayToggle = useCallback(async () => {
+    if (isPlaying) {
+      audioRef.current?.pause();
+      setIsPlaying(false);
+      return;
+    }
+
+    const audio = await ensureAudioElement();
+    if (!audio) return;
+
+    audio.play().catch(() => {
       setError(t("playback.recordingUnavailable"));
       setIsPlaying(false);
     });
     setIsPlaying(true);
-  }, [isPlaying, ensureUrl, t]);
+  }, [isPlaying, ensureAudioElement, t]);
 
   const handleSeek = useCallback((time: number) => {
     if (audioRef.current) {

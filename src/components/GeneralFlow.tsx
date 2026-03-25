@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from "react";
 import { useAppContext } from "../contexts/AppContext";
 import { useSessionContext } from "../contexts/SessionContext";
 import { usePracticeContext } from "../contexts/PracticeContext";
@@ -14,6 +15,25 @@ export function GeneralFlow() {
   const app = useAppContext();
   const sess = useSessionContext();
   const practice = usePracticeContext();
+  const { screen, prepareAudio } = app;
+
+  // Find previous completed General session for chart comparison
+  const previousGeneralRatings = useMemo(() => {
+    const currentId = sess.session?.id;
+    const all = sess.historySessions;
+    for (const s of all) {
+      if (s.id !== currentId && s.status === "COMPLETED" && s.ratings && s.type !== "Interview") {
+        return s.ratings;
+      }
+    }
+    return undefined;
+  }, [sess.historySessions, sess.session?.id]);
+
+  useEffect(() => {
+    if ((screen === "PLAYBACK" || screen === "SCORE_SUMMARY") && sess.audio?.fileUri) {
+      prepareAudio(sess.audio.fileUri);
+    }
+  }, [screen, prepareAudio, sess.audio?.fileUri]);
 
   return (
     <>
@@ -119,6 +139,9 @@ export function GeneralFlow() {
           speechAnalysis={sess.savedSpeechAnalysis}
           transcriptionStatus={sess.transcriptionPolling.transcriptionStatus}
           isPollingTranscription={sess.transcriptionPolling.isPolling}
+          transcript={sess.session?.transcript ?? sess.transcriptionPolling.transcript ?? undefined}
+          ratings={sess.session?.ratings}
+          previousRatings={previousGeneralRatings}
           isPlaying={app.isPlaying}
           currentTime={app.currentTime}
           duration={app.duration}
