@@ -23,6 +23,7 @@ interface ScoreSummaryScreenProps {
   isPlaying?: boolean;
   currentTime?: number;
   duration?: number;
+  playbackError?: boolean;
   onPlayToggle?: () => void;
   onSeek?: (time: number) => void;
   onSkipBackward?: () => void;
@@ -38,7 +39,6 @@ export function ScoreSummaryScreen({
   isSaving = false,
   isSaved = false,
   isAuthenticated = false,
-  user = null,
   sessionId = null,
   sessionType,
   speechAnalysis,
@@ -47,6 +47,7 @@ export function ScoreSummaryScreen({
   isPlaying = false,
   currentTime = 0,
   duration = 0,
+  playbackError = false,
   onPlayToggle,
   onSeek,
   onSkipBackward,
@@ -55,6 +56,11 @@ export function ScoreSummaryScreen({
   onSaveAndGetAdvice,
 }: ScoreSummaryScreenProps) {
   const { t } = useTranslation();
+  const effectiveDuration = duration > 0
+    ? duration
+    : audio?.durationMs
+    ? audio.durationMs / 1000
+    : 0;
   const adviceText =
     advice ??
     (isAuthenticated
@@ -62,6 +68,9 @@ export function ScoreSummaryScreen({
       : isSaving
       ? t("score.redirecting")
       : t("score.saveToGetAdvice"));
+  const canRenderPlaybackControls = !!onPlayToggle && !!onSeek && !!onSkipBackward && !!onSkipForward;
+  const canShowPlayer =
+    canRenderPlaybackControls && !!audio?.available && !!audio.fileUri && !playbackError;
 
   return (
     <motion.div
@@ -185,18 +194,27 @@ export function ScoreSummaryScreen({
 
          
 
-          {audio?.available && audio.fileUri && onPlayToggle && onSeek && onSkipBackward && onSkipForward && (
+          {canRenderPlaybackControls && (
             <div className="mt-4 w-full flex justify-center">
-              <AudioPlayer
-                compact
-                isPlaying={isPlaying}
-                currentTime={currentTime}
-                duration={duration}
-                onPlayToggle={onPlayToggle}
-                onSeek={onSeek}
-                onSkipBackward={onSkipBackward}
-                onSkipForward={onSkipForward}
-              />
+              {canShowPlayer ? (
+                <AudioPlayer
+                  compact
+                  isPlaying={isPlaying}
+                  currentTime={currentTime}
+                  duration={effectiveDuration}
+                  onPlayToggle={onPlayToggle!}
+                  onSeek={onSeek!}
+                  onSkipBackward={onSkipBackward!}
+                  onSkipForward={onSkipForward!}
+                />
+              ) : (
+                <span
+                  className="text-[11px] tracking-[0.12em] uppercase text-[#1a1a1a]/45"
+                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                >
+                  {t("playback.recordingUnavailable")}
+                </span>
+              )}
             </div>
           )}
         </motion.div>

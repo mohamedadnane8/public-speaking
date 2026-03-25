@@ -11,6 +11,7 @@ interface InterviewPlaybackScreenProps {
   isPlaying: boolean;
   currentTime: number;
   duration: number;
+  playbackError?: boolean;
   onPlayToggle: () => void;
   onSeek: (time: number) => void;
   onSkipBackward: () => void;
@@ -26,6 +27,7 @@ export function InterviewPlaybackScreen({
   isPlaying,
   currentTime,
   duration,
+  playbackError = false,
   onPlayToggle,
   onSeek,
   onSkipBackward,
@@ -33,6 +35,11 @@ export function InterviewPlaybackScreen({
   onContinue,
 }: InterviewPlaybackScreenProps) {
   const { t } = useTranslation();
+  const effectiveDuration = duration > 0
+    ? duration
+    : audio?.durationMs
+    ? audio.durationMs / 1000
+    : 0;
 
   const getErrorMessage = (errorCode?: string) => {
     switch (errorCode) {
@@ -80,11 +87,11 @@ export function InterviewPlaybackScreen({
 
         {/* Playback controls */}
         <div className="flex flex-col items-center gap-6 w-full">
-          {audio?.available && audio.fileUri ? (
+          {audio?.available && audio.fileUri && !playbackError ? (
             <AudioPlayer
               isPlaying={isPlaying}
               currentTime={currentTime}
-              duration={duration}
+              duration={effectiveDuration}
               onPlayToggle={onPlayToggle}
               onSeek={onSeek}
               onSkipBackward={onSkipBackward}

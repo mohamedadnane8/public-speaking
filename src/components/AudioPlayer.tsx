@@ -30,7 +30,10 @@ export function AudioPlayer({
   onSkipForward,
   compact = false,
 }: AudioPlayerProps) {
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const safeDuration = isFinite(duration) && duration > 0 ? duration : 0;
+  const safeCurrentTime = Math.max(0, isFinite(currentTime) ? currentTime : 0);
+  const boundedCurrentTime = safeDuration > 0 ? Math.min(safeCurrentTime, safeDuration) : safeCurrentTime;
+  const progress = safeDuration > 0 ? Math.min(100, Math.max(0, (boundedCurrentTime / safeDuration) * 100)) : 0;
 
   const iconSize = compact ? 16 : 20;
   const playIconSize = compact ? 20 : 24;
@@ -53,20 +56,20 @@ export function AudioPlayer({
           className="text-xs text-[#1a1a1a]/50 w-10 text-right"
           style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
         >
-          {formatTime(currentTime)}
+          {formatTime(boundedCurrentTime)}
         </span>
         <Slider
           value={[progress]}
           max={100}
           step={0.1}
-          onValueChange={([value]) => onSeek((value / 100) * duration)}
+          onValueChange={([value]) => onSeek((value / 100) * safeDuration)}
           className="flex-1"
         />
         <span
           className="text-xs text-[#1a1a1a]/50 w-10"
           style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
         >
-          {formatTime(duration)}
+          {formatTime(safeDuration)}
         </span>
       </div>
 

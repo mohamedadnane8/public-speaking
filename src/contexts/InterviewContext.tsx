@@ -144,6 +144,8 @@ export function InterviewProvider({ children }: { children: ReactNode }) {
 
   const transitionToInterviewPlayback = useCallback(async () => {
     interviewSpeakTimer.pause();
+    // Keep recording a tiny tail to avoid clipping the end of speech.
+    await new Promise<void>((resolve) => setTimeout(resolve, 300));
     await sess.stopRecording();
     app.setScreen("INTERVIEW_PLAYBACK");
   }, [interviewSpeakTimer, sess.stopRecording, app.setScreen]);

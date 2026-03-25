@@ -12,6 +12,7 @@ interface PlaybackScreenProps {
   isPlaying: boolean;
   currentTime: number;
   duration: number;
+  playbackError?: boolean;
   onPlayToggle: () => void;
   onSeek: (time: number) => void;
   onSkipBackward: () => void;
@@ -27,6 +28,7 @@ export function PlaybackScreen({
   isPlaying,
   currentTime,
   duration,
+  playbackError = false,
   onPlayToggle,
   onSeek,
   onSkipBackward,
@@ -34,6 +36,12 @@ export function PlaybackScreen({
   onContinue,
 }: PlaybackScreenProps) {
   const { t } = useTranslation();
+  const effectiveDuration = duration > 0
+    ? duration
+    : audio?.durationMs
+    ? audio.durationMs / 1000
+    : 0;
+
   const getErrorMessage = (errorCode?: string) => {
     switch (errorCode) {
       case "MIC_PERMISSION": return t("playback.errorMicPermission");
@@ -80,11 +88,11 @@ export function PlaybackScreen({
 
         {/* Playback controls */}
         <div className="flex flex-col items-center gap-6 w-full">
-          {audio?.available && audio.fileUri ? (
+          {audio?.available && audio.fileUri && !playbackError ? (
             <AudioPlayer
               isPlaying={isPlaying}
               currentTime={currentTime}
-              duration={duration}
+              duration={effectiveDuration}
               onPlayToggle={onPlayToggle}
               onSeek={onSeek}
               onSkipBackward={onSkipBackward}

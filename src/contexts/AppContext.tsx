@@ -39,6 +39,7 @@ interface AppContextValue {
   setCurrentTime: React.Dispatch<React.SetStateAction<number>>;
   duration: number;
   setDuration: React.Dispatch<React.SetStateAction<number>>;
+  playbackError: boolean;
   audioRef: React.MutableRefObject<HTMLAudioElement | null>;
   audioSrcRef: React.MutableRefObject<string | null>;
   handlePlayToggle: (fileUri?: string) => void;
@@ -127,6 +128,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [playbackError, setPlaybackError] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioSrcRef = useRef<string | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -177,13 +179,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       audioSrcRef.current = null;
       setCurrentTime(0);
       setDuration(0);
+      setPlaybackError(false);
     }
     if (!audioRef.current) {
       audioRef.current = new Audio(fileUri);
       audioSrcRef.current = fileUri;
-      audioRef.current.onended = () => setIsPlaying(false);
+      audioRef.current.onended = () => {
+        const endedDur = audioRef.current?.duration;
+        if (endedDur && isFinite(endedDur) && endedDur > 0) {
+          setCurrentTime(endedDur);
+        }
+        setIsPlaying(false);
+      };
       audioRef.current.onerror = () => {
         console.error("Audio playback error for source:", fileUri);
+        setPlaybackError(true);
         setIsPlaying(false);
       };
       audioRef.current.onloadedmetadata = () => {
@@ -191,6 +201,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (rawDur && isFinite(rawDur) && rawDur > 0) {
           setDuration(rawDur);
         }
+        setPlaybackError(false);
       };
     }
     return audioRef.current;
@@ -203,8 +214,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setIsPlaying(false);
     } else {
       const audio = ensureAudioElement(fileUri);
+      setPlaybackError(false);
       audio.play().catch((err) => {
         console.error("Audio play() failed:", err);
+        setPlaybackError(true);
         setIsPlaying(false);
       });
       setIsPlaying(true);
@@ -237,8 +250,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const audio = ensureAudioElement(fileUri);
     audio.currentTime = 0;
     setCurrentTime(0);
+    setPlaybackError(false);
     audio.play().catch((err) => {
       console.error("Audio replay() failed:", err);
+      setPlaybackError(true);
       setIsPlaying(false);
     });
     setIsPlaying(true);
@@ -249,14 +264,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isAuthSuccessPage, isAuthErrorPage, authError, clearAuthParams,
     user, isAuthenticated, isAuthLoading, isLocalhostEnv, login, devLogin, logout, refreshUser,
     isAccountMenuOpen, setIsAccountMenuOpen, accountMenuRef,
-    isPlaying, setIsPlaying, currentTime, setCurrentTime, duration, setDuration, audioRef, audioSrcRef,
+    isPlaying, setIsPlaying, currentTime, setCurrentTime, duration, setDuration, playbackError, audioRef, audioSrcRef,
     handlePlayToggle, handleSeek, handleSkipBackward, handleSkipForward, handleReplay, setFallbackDuration,
   }), [
     screen, section, showNavbar,
     isAuthSuccessPage, isAuthErrorPage, authError, clearAuthParams,
     user, isAuthenticated, isAuthLoading, isLocalhostEnv, login, devLogin, logout, refreshUser,
     isAccountMenuOpen, accountMenuRef,
-    isPlaying, currentTime, duration,
+    isPlaying, currentTime, duration, playbackError,
     handlePlayToggle, handleSeek, handleSkipBackward, handleSkipForward, handleReplay, setFallbackDuration,
   ]);
 

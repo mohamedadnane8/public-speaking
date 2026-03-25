@@ -234,6 +234,8 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
 
   const transitionToPlayback = useCallback(async () => {
     speakTimer.pause();
+    // Keep recording a tiny tail to avoid clipping the end of speech.
+    await new Promise<void>((resolve) => setTimeout(resolve, 300));
     await sess.stopRecording();
     if (sess.audio?.durationMs) {
       app.setFallbackDuration(sess.audio.durationMs);

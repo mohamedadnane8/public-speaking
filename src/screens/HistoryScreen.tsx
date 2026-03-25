@@ -356,12 +356,19 @@ export function HistoryScreen({
               )}
 
               {/* Audio player */}
-              {selectedSession.audio?.available &&
-                (selectedSession.audio?.fileUri || selectedSession.audio?.objectKey) && (
-                <div className="mt-4">
+              <div className="mt-4">
+                {selectedSession.audio?.available &&
+                (selectedSession.audio?.fileUri || selectedSession.audio?.objectKey) ? (
                   <HistoryAudioPlayer session={selectedSession} />
-                </div>
-              )}
+                ) : (
+                  <span
+                    className="text-[11px] tracking-[0.12em] uppercase text-[#1a1a1a]/45"
+                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                  >
+                    {t("playback.recordingUnavailable")}
+                  </span>
+                )}
+              </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
@@ -416,7 +423,7 @@ function HistoryAudioPlayer({ session }: { session: Session }) {
     } finally {
       setLoading(false);
     }
-  }, [audioUrl, session.id, session.audio?.objectKey]);
+  }, [audioUrl, session.id, session.audio?.objectKey, t]);
 
   // Progress tracking
   useEffect(() => {
@@ -452,17 +459,31 @@ function HistoryAudioPlayer({ session }: { session: Session }) {
     if (!url) return;
     if (!audioRef.current) {
       audioRef.current = new Audio(url);
-      audioRef.current.onended = () => setIsPlaying(false);
+      audioRef.current.onended = () => {
+        const endedDur = audioRef.current?.duration;
+        if (endedDur && isFinite(endedDur) && endedDur > 0) {
+          setCurrentTime(endedDur);
+        }
+        setIsPlaying(false);
+      };
+      audioRef.current.onerror = () => {
+        setError(t("playback.recordingUnavailable"));
+        setIsPlaying(false);
+      };
       audioRef.current.onloadedmetadata = () => {
         const rawDur = audioRef.current?.duration;
         if (rawDur && isFinite(rawDur) && rawDur > 0) {
           setDuration(rawDur);
         }
+        setError(null);
       };
     }
-    audioRef.current.play();
+    audioRef.current.play().catch(() => {
+      setError(t("playback.recordingUnavailable"));
+      setIsPlaying(false);
+    });
     setIsPlaying(true);
-  }, [isPlaying, ensureUrl]);
+  }, [isPlaying, ensureUrl, t]);
 
   const handleSeek = useCallback((time: number) => {
     if (audioRef.current) {

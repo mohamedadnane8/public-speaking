@@ -79,6 +79,7 @@ export function GeneralFlow() {
           isPlaying={app.isPlaying}
           currentTime={app.currentTime}
           duration={app.duration}
+          playbackError={app.playbackError}
           onPlayToggle={() => app.handlePlayToggle(sess.audio?.fileUri)}
           onSeek={app.handleSeek}
           onSkipBackward={app.handleSkipBackward}
@@ -121,6 +122,7 @@ export function GeneralFlow() {
           isPlaying={app.isPlaying}
           currentTime={app.currentTime}
           duration={app.duration}
+          playbackError={app.playbackError}
           onPlayToggle={() => app.handlePlayToggle(sess.audio?.fileUri)}
           onSeek={app.handleSeek}
           onSkipBackward={app.handleSkipBackward}

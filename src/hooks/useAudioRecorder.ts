@@ -50,7 +50,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
 
     // Reset state
     chunksRef.current = [];
-    startTimeRef.current = Date.now();
+    startTimeRef.current = 0;
     mediaRecorderRef.current = null;
 
     let stream: MediaStream | null = null;
@@ -160,6 +160,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         const onStart = () => {
           if (settled) return;
           settled = true;
+          startTimeRef.current = Date.now();
           cleanupStartWait();
           resolveStart();
         };
@@ -176,6 +177,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
           settled = true;
           cleanupStartWait();
           if (mediaRecorder.state === "recording") {
+            startTimeRef.current = Date.now();
             resolveStart();
           } else {
             rejectStart(new Error("MediaRecorder start timed out"));
@@ -219,6 +221,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         available: false,
         errorCode,
       });
+      startTimeRef.current = 0;
       setIsRecording(false);
     }
   }, []);
@@ -241,7 +244,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
       return;
     }
 
-    const startedAt = startTimeRef.current;
+    const startedAt = startTimeRef.current > 0 ? startTimeRef.current : Date.now();
     
     return new Promise((resolve) => {
       let resolved = false;
