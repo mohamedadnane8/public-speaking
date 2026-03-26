@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Legend } from "recharts";
 import type { SessionAudio, SessionType, SessionRatings, InterviewRatings, TranscriptionStatus } from "@/types/session";
 import type { User } from "@/hooks/useAuth";
+import { normalizeScore } from "@/lib/scoring";
 import { AiAnalysis } from "@/components/AiAnalysis";
 import { AudioPlayer } from "@/components/AudioPlayer";
 
@@ -70,7 +71,8 @@ export function ScoreSummaryScreen({
 }: ScoreSummaryScreenProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"self" | "ai">("self");
-  const showAiTab = isAuthenticated && isSaved && sessionId;
+  const showAiTab = true;
+  const aiReady = isAuthenticated && isSaved && sessionId;
 
   const effectiveDuration = duration > 0
     ? duration
@@ -95,7 +97,7 @@ export function ScoreSummaryScreen({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
-      className="min-h-screen w-full flex flex-col items-center justify-center px-4 py-16"
+      className="min-h-screen w-full flex flex-col items-center px-4 pt-20 pb-16"
     >
       <div className="flex flex-col items-center space-y-12 w-full max-w-[min(100%,32rem)]">
         {/* Tabs */}
@@ -155,13 +157,13 @@ export function ScoreSummaryScreen({
               className="text-7xl sm:text-8xl md:text-9xl tracking-[0.05em] text-[#1a1a1a]"
               style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 400 }}
             >
-              {overallScore.toFixed(1)}
+              {normalizeScore(overallScore)}
             </span>
             <span
               className="text-xs tracking-[0.15em] text-[#1a1a1a]/40"
               style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
             >
-              {t("score.outOf10")}
+              {t("score.outOf100")}
             </span>
           </motion.div>
 
@@ -200,14 +202,51 @@ export function ScoreSummaryScreen({
         {/* AI Analysis tab content — always mounted to preserve state */}
         {showAiTab && (
           <div className={activeTab !== "ai" ? "hidden" : "w-full flex justify-center"}>
-            <AiAnalysis
-              sessionId={sessionId}
-              sessionType={sessionType}
-              speechAnalysis={speechAnalysis ?? null}
-              transcriptionStatus={transcriptionStatus}
-              isPolling={isPollingTranscription}
-              transcript={transcript}
-            />
+            {aiReady ? (
+              <AiAnalysis
+                sessionId={sessionId}
+                sessionType={sessionType}
+                speechAnalysis={speechAnalysis ?? null}
+                transcriptionStatus={transcriptionStatus}
+                isPolling={isPollingTranscription}
+                transcript={transcript}
+              />
+            ) : (
+              <div className="w-full max-w-sm border border-[#1a1a1a]/10 bg-[#1a1a1a]/[0.02] px-6 py-8 flex flex-col items-center gap-5">
+                {/* Sparkle icon */}
+                <div className="w-10 h-10 rounded-full bg-[#1a1a1a]/[0.05] flex items-center justify-center">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[#1a1a1a]/50">
+                    <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z" />
+                  </svg>
+                </div>
+                <div className="flex flex-col items-center gap-2">
+                  <span
+                    className="text-xs tracking-[0.18em] uppercase text-[#1a1a1a]/70"
+                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 500 }}
+                  >
+                    {t("score.aiAnalysisTab")}
+                  </span>
+                  <p
+                    className="text-sm text-[#1a1a1a]/50 text-center max-w-[16rem] leading-relaxed"
+                    style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                  >
+                    {t("score.aiLoginPrompt")}
+                  </p>
+                </div>
+                <button
+                  onClick={onSaveAndGetAdvice}
+                  disabled={isSaving}
+                  className={`px-10 py-3.5 text-xs tracking-[0.25em] uppercase transition-all duration-300 ${
+                    isSaving
+                      ? "bg-[#1a1a1a]/30 text-[#FDF6F0]/60 cursor-wait"
+                      : "bg-[#1a1a1a] text-[#FDF6F0]/90 hover:bg-[#1a1a1a]/90"
+                  }`}
+                  style={{ fontFamily: '"Inter", sans-serif', fontWeight: 400 }}
+                >
+                  {isSaving ? t("score.redirectingBtn") : t("nav.login")}
+                </button>
+              </div>
+            )}
           </div>
         )}
 

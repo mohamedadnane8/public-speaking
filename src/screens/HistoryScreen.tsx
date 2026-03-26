@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { AiAnalysis } from "@/components/AiAnalysis";
 import { apiClient } from "@/lib/apiClient";
+import { normalizeScore } from "@/lib/scoring";
 import type { Session } from "@/types/session";
 
 interface HistoryScreenProps {
@@ -95,11 +96,11 @@ export function HistoryScreen({
   );
 
   const averageScore = completedWithScore.length > 0
-    ? completedWithScore.reduce((sum, session) => sum + (session.overallScore || 0), 0) / completedWithScore.length
+    ? completedWithScore.reduce((sum, session) => sum + normalizeScore(session.overallScore || 0), 0) / completedWithScore.length
     : 0;
 
   const bestScore = completedWithScore.length > 0
-    ? Math.max(...completedWithScore.map((session) => session.overallScore || 0))
+    ? Math.max(...completedWithScore.map((session) => normalizeScore(session.overallScore || 0)))
     : 0;
 
   return (
@@ -145,13 +146,13 @@ export function HistoryScreen({
           <div className="border border-[#1a1a1a]/15 bg-[#ffffff]/35 px-4 py-4">
             <p className="text-[10px] uppercase tracking-[0.18em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.averageScore")}</p>
             <p className="mt-2 text-3xl text-[#1a1a1a]" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}>
-              {completedWithScore.length > 0 ? averageScore.toFixed(1) : "—"}
+              {completedWithScore.length > 0 ? Math.round(averageScore) : "—"}
             </p>
           </div>
           <div className="border border-[#1a1a1a]/15 bg-[#ffffff]/35 px-4 py-4">
             <p className="text-[10px] uppercase tracking-[0.18em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.bestScore")}</p>
             <p className="mt-2 text-3xl text-[#1a1a1a]" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}>
-              {completedWithScore.length > 0 ? bestScore.toFixed(1) : "—"}
+              {completedWithScore.length > 0 ? Math.round(bestScore) : "—"}
             </p>
           </div>
         </div>
@@ -251,7 +252,7 @@ export function HistoryScreen({
                       className="min-w-[3.5rem] text-right text-2xl text-[#1a1a1a]"
                       style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}
                     >
-                      {typeof session.overallScore === "number" ? session.overallScore.toFixed(1) : "—"}
+                      {typeof session.overallScore === "number" ? normalizeScore(session.overallScore) : "—"}
                     </span>
                   </div>
                 </div>
@@ -356,7 +357,7 @@ export function HistoryScreen({
                     <div className="border border-[#1a1a1a]/15 px-3 py-3">
                       <p className="text-[10px] uppercase tracking-[0.16em] text-[#1a1a1a]/45" style={{ fontFamily: '"Inter", sans-serif' }}>{t("history.score")}</p>
                       <p className="mt-1 text-2xl text-[#1a1a1a]" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 500 }}>
-                        {typeof selectedSession.overallScore === "number" ? selectedSession.overallScore.toFixed(1) : "—"}
+                        {typeof selectedSession.overallScore === "number" ? normalizeScore(selectedSession.overallScore) : "—"}
                       </p>
                     </div>
                   </div>
