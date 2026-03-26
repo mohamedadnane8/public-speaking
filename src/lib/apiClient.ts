@@ -9,7 +9,7 @@
  * check your backend cookie settings and CORS configuration.
  */
 
-const RAW_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://api.publicspeaking.adnanelogs.com";
+const RAW_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://api.kalm.app";
 export const API_BASE_URL = RAW_API_BASE_URL.replace(/\/+$/, "");
 const DEBUG = import.meta.env.DEV;
 
