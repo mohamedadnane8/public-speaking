@@ -63,6 +63,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Screen state
   const [screen, setScreen] = useState<Screen>("HOME");
 
+  // Scroll to top on every screen transition
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [screen]);
+
   // Auth callback
   const urlParams = new URLSearchParams(window.location.search);
   const authError = urlParams.get("error");
